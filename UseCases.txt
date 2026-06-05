@@ -1,0 +1,93 @@
+Actors: Admin, Player
+
+UC Tournament Creation:
+The admin creates the tournament, setting its name, start and end date
+
+UC Team Creation:
+The admin creates a bettable team, setting its name
+
+UC Team Tournament assignment;
+PRE tournament is selected
+The admin assigns a bettable team to a tournament, setting its sheep price for the tournament
+
+UC Phase Creation:
+PRE tournament is selected
+The admin creates a tournament phase, setting its type, name, number, wallet
+
+UC Bettable Creation:
+PRE tournament T is selected, T phase is selected
+The admin creates a bettable event for the selected phase, setting the teams involved and its start date & time.
+If the start date and time is in the future, the bettable state is set to OPEN
+
+UC Tournament Publishing:
+PRE tournament is selected
+The admin opens the tournament to bettors. The tournament's web-site is created, an invitation e-mail wih the link is sent
+to the registered bettors (+ filtering +), and possibly to additional bettor candidates
+
+UC Bettor creation:
+A wannabe-bettor registers to the Betty application, setting its email address, password and pseudo.
+
+UC bettor login:
+A registered bettor logs-in to Betty using its pseudo or email address and password.
+The tournaments to which he is registered are listed.
+POST bettor logged-in
+
+UC tournament selection:
+PRE bettor logged-in
+The bettor selects a tournament from those to which he has registered.
+POST Tournament selected
+
+UC Tournament registration:
+PRE bettor logged-in
+Betty selects the open tournaments
+The bettor selects the open tournament into which he wants to participate (automatic selection if only one tournament opened)
+The bettor wallet is credited with the Tournament's setup wallet.
+
+UC BTeam setup:
+The admin creates a BTeam and assigns some registered bettors to it
+
+UC The Bettor sets up its sheep livestock
+PRE bettor logged in, OPEN tournament T selected,
+The Bettor buys sheep. Its wallet is debited accordingly
+
+UC Bet:
+PRE bettor logged-in, OPEN tournament T selected
+The bettor enters its bet for any of the OPEN available T bettable
+
+UC Tournament status:
+PRE bettor logged-in, OPEN tournament T selected
+The bettor choose 'tournament status' from the available actions.
+The tournament's bettable are listed in accordance with their status
+
+UC Tournament ranking:
+PRE bettor logged-in, OPEN tournament T selected
+The bettor choose 'tournament ranking' from the available actions.
+The tournament's current bettor ranking is listed.
+
+UC The tournament starts:
+Five minutes before the start of the first bettable of a tournament T, T state is set to RUNNING
+
+UC A bettable starts:
+Five minutes before the start of a bettable, its state is set to RUNNING
+
+UC The admin registers a bettable score after its completion:
+PRE RUNNING tournament T selected, RUNNING bettable selected
+The admin registers the final score of the bettable. The bettable is set to CLOSED.
+The bettor ranking is re-computed.
+
+UC The admin corrects a bettable score after its completion:
+PRE RUNNING tournament T selected, CLOSED bettable selected
+The admin corrects the final score of the bettable.
+
+
+
+
+
+
+
+
+
+
+
+
+
