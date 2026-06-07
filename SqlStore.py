@@ -1,5 +1,5 @@
-import psycopg
-import psycopg.rows
+#import psycopg
+#import psycopg.rows
 
 class SqlStore:
     _instance = None

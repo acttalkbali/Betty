@@ -1,4 +1,4 @@
-from Storable import Storable
+from model.storable import Storable
 
 class Phase(Storable):
     def __init__(self, name):

@@ -1,4 +1,4 @@
-from Storable import Storable
+from .storable import Storable
 
 class Bettor(Storable):
 

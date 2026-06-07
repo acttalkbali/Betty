@@ -1,5 +1,8 @@
-from Storable import Storable
-import datetime as dt
+from datetime import datetime
+
+from .storable import Storable
+from .team import Team
+from .phase import Phase
 
 BETTABLE_STATE_OPEN = "OPEN"
 BETTABLE_STATE_RUNNING = "RUNNING"
@@ -15,9 +18,9 @@ class Bettable(Storable):
                                       ('start', '_start'),
                                       ('state', '_state')]}
 
-    def __init__(self, phase: Phase, team_a: Team, team_b: Team, start: dt.datetime, store):
+    def __init__(self, phase: Phase, team_a: Team, team_b: Team, start: datetime, store):
         super().__init__(store)
-        self._name = name
+        self._name = f"{phase.name}:{team_a.name}-{team_b.name}"
         self._team_a = team_a
         self._team_b = team_b
         self._start = start
