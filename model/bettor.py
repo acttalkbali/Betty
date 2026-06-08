@@ -20,7 +20,7 @@ class Bettor(Storable):
         return f'Bettor {self.name} alias {self.nickname}]'
 
     def __repr__(self):
-        return super().__repr__(self)
+        return super().__repr__()
 
     def save(self):
         self._datastore.save(cls, self)

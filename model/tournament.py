@@ -21,7 +21,7 @@ class Tournament(Storable):
         return f'Tournament {self._name} starting on {self._start_dt}, ending on {self._end_dt}'
 
     def __repr__(self):
-        return super().__repr__(self)
+        return super().__repr__()
 
     @property
     def name(self):

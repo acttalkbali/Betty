@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from .storable import Storable
-from .team import Team
 from .phase import Phase
 
 BETTABLE_STATE_OPEN = "OPEN"
@@ -30,5 +29,5 @@ class Bettable(Storable):
         return f'Bettable {self._team_a.name} - {self._team_b.name} [{start}]'
 
     def __repr__(self):
-        return super().__repr__(self)
+        return super().__repr__()
 
