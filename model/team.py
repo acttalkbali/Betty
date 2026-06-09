@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from .storable import Storable
+from .sheep_value import SheepValue
 from .betty import *
 
 #from SqlStore import SqlStore
@@ -8,6 +9,7 @@ class Team(Storable):
 
     def __init__(self, store, name:str, tournament:Tournament=None, sheep_value:int=None):
         super().__init__(store)
+        self._id = None
         self._name = name or "unnamed"+str(id(self))
         self._tournament = tournament
         self._sheep_value = SheepValue(store, self, tournament, sheep_value)
@@ -29,8 +31,11 @@ class Team(Storable):
     def tournament_id(self):
         return self._tournament._id
 
-    def load(self, condition = ''):
-        self.store_mgr.load(self)
+    def load(self, condition):
+        self.store_mgr.load(self, f"tournament_id={self.tournament_id}" + (f" AND {condition}" if condition else ''))
+
+    def load_by_id(self):
+        self.store_mgr.load(self, f"id={self._id}")
 
     def save(self):
         self.store_mgr.save(self)

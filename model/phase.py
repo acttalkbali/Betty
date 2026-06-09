@@ -1,11 +1,13 @@
 from model.storable import Storable
 
 class Phase(Storable):
-    def __init__(self, store, name:str, tournament:Tournament):
+    def __init__(self, store, name:str, tournament:Tournament, state:str='', scoring:str=''):
         super().__init__(store)
         self._name = name
         self._tournament = tournament
         self._tournament_id = tournament._id
+        self._state = state
+        self._scoring = scoring
 
     def __str__(self):
         return f'Phase {self._name}'
@@ -20,7 +22,6 @@ class Phase(Storable):
     def name(self, v):
         self._name = v or "unnamed" + str(id(self))
 
-    #property
     def tournament_id(self):
         return self._tournament._id
 

@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 
 class Storable(ABC):
 
-    def __init__(self, store_mgr):
+    def __init__(self, store_mgr, id=None):
         super().__init__()
-        self._id = None
+        self._id = id or None
         self.store_mgr = store_mgr
 
     @property
@@ -14,13 +14,14 @@ class Storable(ABC):
     def id(self, value:int|None):
         self._id = value
 
-    @abstractmethod
-    def save(self, connection) -> int|None:
-        ...
+    @property
+    def store(self):
+        return self.store_mgr.get_store()
 
-    @abstractmethod
-    def load(cls, connection):
-        ...
+    def load(self, condition = ''):
+        self.store_mgr.load(self)
 
+    def save(self):
+        self.store_mgr.save(self)
 
 

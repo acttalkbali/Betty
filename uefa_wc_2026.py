@@ -5,41 +5,60 @@ from model.bettable import Bettable
 from datetime import datetime
 
 def setup(betty):
-    wc2026 = Tournament(betty, "FIFA World Cup 2026", datetime(day=11, month=6, year=2026, hour=21),
-                    datetime(day=19, month=7, year=2026, hour=21))
-
-    phases = {
-        '1st round': {
-            'Group A': {
-                'South Africa': 100,
-                'South Korea': 5,
-                'Mexico': 40,
-                'Czech Republic': 40
-            },
-            'Group B': {
-                'Bosnia': 30,
-                'Canada': 20,
-                'Qatar': 1,
-                'Switzerland': 40
-            },
-            'Group B': {
-                'Brazil': 100,
-                'Scotland': 30,
-                'Haiti': 1,
-                'Morocco': 15
-            },
-            'Group D' : {
-                'Belgium' : 40,
-                'Iran' : 10,
-                'Egypt' : 5,
-                'New Zealand' : 1
-            }
-        }
-    }
+    wc2026 = Tournament(betty,
+                        name="FIFA World Cup 2026",
+                        start_date=datetime.fromisoformat('2026-06-11 21:00'),
+                        end_date=datetime.fromisoformat('2026-07-19 21:00'))
+    phases = [
+                {
+                    'name' : '1st round',
+                    'scoring': '630',
+                    'pools': {
+                        'Group A': [
+                            ('South Africa', 100),
+                            ('South Korea', 5),
+                            ('Mexico', 40),
+                            ('Czech Republic', 40)
+                        ],
+                        'Group B': [
+                            ('Bosnia', 30),
+                            ('Canada', 20),
+                            ('Qatar', 1),
+                            ('Switzerland', 40)
+                        ],
+                        'Group C': [
+                            ('Brazil', 100),
+                            ('Scotland', 30),
+                            ('Haiti', 1),
+                            ('Morocco', 15)
+                        ],
+                        'Group D' : [
+                            ('Belgium', 40),
+                            ('Iran', 10),
+                            ('Egypt', 5),
+                            ('New Zealand', 1)
+                        ]
+                    }
+                }
+            ]
+    calendar = [
+        ('2026-06-11 21:00', 'Mexico', 'South Africa'),
+        ('2026-06-12 04:00', 'South Korea', 'Czech Republic'),
+        ('2026-06-18 18:00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][0][0]),
+        ('2026-06-19 03:00', phases[0]['pools']['Group A'][2][0], phases[0]['pools']['Group A'][1][0]),
+        ('2026-06-25 03:00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][2][0]),
+        ('2026-06-25 03:00', phases[0]['pools']['Group A'][0][0], phases[0]['pools']['Group A'][1][0]),
+    ]
 
     wc2026.save()
-    for phase_name, phase_groups in phases.items():
-        Phase(betty,phase_name, wc2026).save()
-        for group_name, group_compo in phase_groups.items():
-            for team_name, sheep_value in group_compo.items():
-                Team(betty, team_name, wc2026, sheep_value).save()
+    teams = {}
+    for phase_dict in phases:
+        phase = Phase(betty, phase_dict['name'], wc2026, "OPEN", phase_dict['scoring'])
+        phase.save()
+        for group_name, group_compo in phase_dict['pools'].items():
+            for team_name, sheep_value in group_compo:
+                teams[team_name] = Team(betty, team_name, wc2026, sheep_value)
+                teams[team_name] .save()
+        for start_dt, team_a_name, team_b_name in calendar:
+            bettable = Bettable(betty, phase, teams[team_a_name], teams[team_b_name], datetime.fromisoformat(start_dt))
+            bettable.save()

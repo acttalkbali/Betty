@@ -6,6 +6,7 @@
 from model.betty import Betty, Tournament, Team, Bet, Bettable, Bettor
 import uefa_wc_2026
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
@@ -14,7 +15,9 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    load_dotenv()
     betty = Betty()
+    betty.drop_db()
     betty.setup_db()
 #    print(betty.class_entity(Tournament))
 

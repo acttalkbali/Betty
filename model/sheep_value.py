@@ -27,6 +27,14 @@ class SheepValue(Storable):
     def name(self, v):
         self._name = v or "unnamed" + str(id(self))
 
+    #property
+    def tournament_id(self):
+        return self._tournament.id
+
+    #property
+    def team_id(self):
+        return self._team.id
+
     def load(self, condition = ''):
         self.store_mgr.load(self)
 
