@@ -6,12 +6,13 @@ from datetime import datetime
 
 class Bet(Storable):
 
-    def __init__(self, store, bettor: Bettor, bettable: Bettable, prediction: int):
+    def __init__(self, store, bettor: Bettor, bettable: Bettable, prediction: int, score:int|None=None):
         super().__init__(store)
         self._name = f"{bettor}:{bettable}={prediction}"
         self._bettor = bettor
         self._bettable = bettable
         self._prediction = prediction # eg. 10=Team_a victory, 01=Team b Victory, 00=Nul, 11=Team_a or Team_b victory, 10=Team_a or nul, 02=Team_b or nul
+        self._score = score
 
     # built_ins -----------------------------------------------------------------
 

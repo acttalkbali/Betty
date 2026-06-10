@@ -10,12 +10,13 @@ TOURNAMENT_STATE_CLOSED = "CLOSED"
 
 class Tournament(Storable):
 
-    def __init__(self, store, id=None, name:str=None, start_date:datetime = None, end_date:datetime = None):
+    def __init__(self, store, id=None, name:str=None, start_date:datetime = None, end_date:datetime = None, sheep_credit:int=500):
         super().__init__(store, id)
         self._name = name
         self._start_dt = start_date
         self._end_dt = end_date #max(self._start_dt, end_date or datetime.now() + timedelta(days=365))
         self._state = TOURNAMENT_STATE_OPEN if (start_date is None or start_date > datetime.now()) else TOURNAMENT_STATE_RUNNING
+        self._sheep_credit = sheep_credit
 
     def __str__(self):
         return f'Tournament {self._name} starting on {self._start_dt}, ending on {self._end_dt}'

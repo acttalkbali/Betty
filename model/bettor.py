@@ -2,8 +2,8 @@ from .storable import Storable
 
 class Bettor(Storable):
 
-    def __init__(self, store, name, pwd=None, email=None, nickname=None):
-        super().__init__(store)
+    def __init__(self, store, name, pwd=None, email=None, nickname=None, id=None):
+        super().__init__(store, id)
         self._name = name
         self._nickname = nickname
         self._email = email
@@ -20,6 +20,7 @@ class Bettor(Storable):
     #    self.store_mgr.load(cls, condition)
 
     def load(self, condition = ''):
+        # todo use the mini model mapping to hide the attribute names
         if self.id:
             condition += self.store.wrap_condition('id', '=', self.id)
         elif self._name:

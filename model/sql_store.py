@@ -79,10 +79,9 @@ class SqlStore:
                 break
         return success
 
-    def insert_or_update(self, table:str, attr_list:list[str], attr_values:list[str], returning:str='id') -> int|None:
-        # 'or_update' to be implemented
+    def insert(self, table:str, attr_list:list[str], attr_values:list[str], returning:str='id') -> int|None:
         id = None
-        cmd = f"INSERT INTO {table} ({attr_list}) VALUES ({attr_values}) RETURNING {returning};"
+        cmd = f"INSERT INTO {table} ({', '.join(attr_list)}) VALUES ({', '.join(attr_values)}) RETURNING {returning};"
         try:
             with self._conn as conn:
                 with conn.cursor() as cur:
@@ -94,20 +93,24 @@ class SqlStore:
                     print(f"Success {id} <- {cmd}")
         except Exception as e:
             print(f"Failed to {cmd} : {e}")
-
         return id
 
-
-    def check(label: str, result, assertion_fn, hint: str = ""):
+    def update(self, table:str, id, attr_list:list[str], attr_values:list[str]) -> int|None:
+        condition = "id={id}"
+        attr_value_pairs = ', '.join([f"{attr}={value}" for attr, value in zip(attr_list, attr_values)])
+        cmd = f"UPDATE {table} SET {attr_value_pairs} WHERE {condition} RETURNING id;"
         try:
-            ok = assertion_fn(result)
+            with self._conn as conn:
+                with conn.cursor() as cur:
+                    cur.execute(cmd)
+                    if cur.rowcount == 1:
+                        rows = cur.fetchone()
+                        if rows:
+                            id = rows[0]
+                    conn.commit()
+                    print(f"Success {id} <- {cmd}")
         except Exception as e:
-            ok = False
-            hint = f"{hint} | assertion raised: {e}"
-        status = "✅ PASS" if ok else "❌ FAIL"
-        print(f"{status}  —  {label}")
-        if not ok:
-            print(f"         Result  : {result}")
-            if hint:
-                print(f"         Hint    : {hint}")
+            print(f"Failed to {cmd} : {e}")
+        return id
+
 

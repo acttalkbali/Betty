@@ -10,7 +10,7 @@ BETTABLE_STATE_CLOSED = "CLOSED"
 
 class Bettable(Storable):
 
-    def __init__(self, store, phase: Phase, team_a: Team, team_b: Team, start_dt: datetime):
+    def __init__(self, store, phase: Phase, team_a: Team, team_b: Team, start_dt: datetime, outcome:int|None=None):
         super().__init__(store)
         self._name = f"{phase.name}:{team_a.name}-{team_b.name}"
         self._phase = phase
@@ -18,6 +18,7 @@ class Bettable(Storable):
         self._team_b = team_b
         self._start_dt = start_dt
         self._state = BETTABLE_STATE_OPEN if start_dt > datetime.now() else BETTABLE_STATE_RUNNING
+        self._outcome = outcome
 
     # built_ins -----------------------------------------------------------------
 

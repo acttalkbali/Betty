@@ -8,7 +8,8 @@ from .sheep_livestock import SheepLivestock
 from .sheep_value import SheepValue
 from .team import Team
 from .tournament import Tournament
-from.participation import Participation
+from .participation import Participation
+from .ranking import Ranking
 from .sql_store import SqlStore
 
 from datetime import datetime, timedelta
@@ -32,19 +33,6 @@ class Betty:
     def private_attribute(cls, attr: str) -> (str, str):
         return attr, '_' + attr
 
-    @classmethod
-    def class_entity(cls, pycls) -> str:
-        dic ={Tournament: "tournament",
-                Phase: "phase",
-                Bettable: "bettable",
-                Bettor: "bettor",
-                Participation: 'participation',
-                Bet: "bet",
-                Bteam: "bteam",
-                Team: "team",
-                SheepLivestock: "sheep_livestock",
-                SheepValue: "sheep_value"}
-        return dic.get(pycls)
 
     @classmethod
     def references_by_id(cls, pyclass, prefix='', nullable=False) -> str:
@@ -63,13 +51,38 @@ class Betty:
         return attr, f"{attr}"
 
 
+    @classmethod
+    def class_entity(cls, pycls) -> str:
+        """
+        :param pycls: The python model class
+        :return: The store entity for the supplied python model class
+        """
+        dic ={  Tournament: "tournament",
+                Phase: "phase",
+                Bettable: "bettable",
+                Bettor: "bettor",
+                Participation: 'participation',
+                Bet: "bet",
+                Bteam: "bteam",
+                Team: "team",
+                SheepLivestock: "sheep_livestock",
+                SheepValue: "sheep_value",
+                Ranking: "ranking"
+              }
+        return dic.get(pycls)
+
     def attribute_mappings(self, pycls):
+        """
+        :param pycls: The python model class
+        :return: The micro object-relational definition for the specified python model class
+        """
         #print(f"attrinbute_mapping {Tournament} {pycls}")
         return {Tournament:
                      [Betty.private_attribute('name'),
                       Betty.private_attribute('start_dt'),
                       Betty.private_attribute('end_dt'),
-                      Betty.private_attribute('state')],
+                      Betty.private_attribute('state'),
+                      Betty.private_attribute('sheep_credit')],
                 Phase:
                     [Betty.private_attribute('name'),
                      Betty.relates_by_id(Tournament),
@@ -81,7 +94,8 @@ class Betty:
                       Betty.relates_by_id(Phase),
                       Betty.relates_by_id(Team, 'a'),
                       Betty.relates_by_id(Team, 'b'),
-                      Betty.private_attribute('state')],
+                      Betty.private_attribute('state'),
+                      Betty.private_attribute('outcome')],
                 Bettor:
                      [Betty.private_attribute('name'),
                       Betty.private_attribute('nickname'),
@@ -94,23 +108,31 @@ class Betty:
                 Bet:
                      [Betty.relates_by_id(Bettor),
                       Betty.relates_by_id(Bettable),
-                      Betty.private_attribute('prediction')],
+                      Betty.private_attribute('prediction'),
+                      Betty.private_attribute('score')],
                 Bteam:
                      [('', '')],
                 Team:
                      [Betty.private_attribute('name'),
                       Betty.relates_by_id(Tournament)],
-
                 SheepLivestock:
                      [('', '')],
                 SheepValue:
                     [Betty.relates_by_id(Tournament),
                      Betty.relates_by_id(Team),
-                     Betty.private_attribute('sheep_value')]
+                     Betty.private_attribute('sheep_value')],
+                Ranking:
+                    [Betty.relates_by_id(Tournament),
+                     Betty.relates_by_id(Bettor),
+                     Betty.private_attribute('ranking'),
+                     Betty.private_attribute('score')]
                 }.get(pycls)
 
     @classmethod
     def schema(cls) -> list[str]:
+        """
+        :return: the commands to create the DB
+        """
         return [
             #f"""
             #DROP TYPE IF EXISTS TEMPORAL_STATE CASCADE;
@@ -158,7 +180,8 @@ class Betty:
                  {cls.references_by_id(Team, 'a')},
                  {cls.references_by_id(Team, 'b')},
                  start_dt TIMESTAMPTZ,
-                 state TEXT NOT NULL
+                 state TEXT NOT NULL,
+                 outcome INT
                  );
             """,
             f"""
@@ -189,30 +212,23 @@ class Betty:
                  id SERIAL PRIMARY KEY,
                  {cls.references_by_id(Bettable)},
                  {cls.references_by_id(Bettor)},
-                 prediction INT NOT NULL
+                 prediction INT NOT NULL,
+                 score FLOAT
+                 );
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS {cls.class_entity(Ranking)} (
+                 id SERIAL PRIMARY KEY,
+                 {cls.references_by_id(Tournament)},
+                 {cls.references_by_id(Bettor)},
+                 rank INT NOT NULL,
+                 score FLOAT
                  );
             """
         ]
 
     @classmethod
-    def drop_db(cls):
-        commands = [
-            "DROP TABLE IF EXISTS bet CASCADE;",
-            "DROP TABLE IF EXISTS bettor CASCADE;",
-            "DROP TABLE IF EXISTS bteam CASCADE;",
-            "DROP TABLE IF EXISTS bettable CASCADE;",
-            "DROP TABLE IF EXISTS sheep_value CASCADE;",
-            "DROP TABLE IF EXISTS team CASCADE;",
-            "DROP TABLE IF EXISTS phase CASCADE;",
-            "DROP TABLE IF EXISTS tournament CASCADE;",
-            "DROP TABLE IF EXISTS participation CASCADE;",
-        ]
-        store = cls.get_store()
-        if store.run_commands(commands) == True:
-            print('DB TABLES DROPPED')
-
-    @classmethod
-    def setup_db(cls):
+    def setup_db(cls): # todo move to sql_store
         commands = [reduce(lambda res, c: res if (c == ' ' and (res=='' or res[-1]==' ')) else res + c,
                            cmd.replace("\n", " "),
                            '')
@@ -223,19 +239,61 @@ class Betty:
             print('SCHEMA CREATED')
 
     @classmethod
-    def query(cls, str) -> list[dict]:
-        print(str)
-        return Betty().get_store().run_query(str)
+    def drop_db(cls): # todo move to sql_store
+        """
+        Run the commands to delete the DB
+        :return: None
+        """
+        commands = [
+            "DROP TABLE IF EXISTS bet CASCADE;",
+            "DROP TABLE IF EXISTS bettor CASCADE;",
+            "DROP TABLE IF EXISTS bteam CASCADE;",
+            "DROP TABLE IF EXISTS bettable CASCADE;",
+            "DROP TABLE IF EXISTS sheep_value CASCADE;",
+            "DROP TABLE IF EXISTS team CASCADE;",
+            "DROP TABLE IF EXISTS phase CASCADE;",
+            "DROP TABLE IF EXISTS tournament CASCADE;",
+            "DROP TABLE IF EXISTS participation CASCADE;",
+            "DROP TABLE IF EXISTS ranking CASCADE;",
+        ]
+        store = cls.get_store()
+        if store.run_commands(commands) == True:
+            print('DB TABLES DROPPED')
 
     @classmethod
-    def load(cls, pycls, condition: str):
+    def query(cls, command) -> list[dict]:
+        """
+        Execute the supplied query command on the DB
+        :param command:
+        :return:
+        """
+        print(command)
+        return Betty().get_store().run_query(command)
+
+    @classmethod
+    def load(cls, pycls, condition: str): # todo hide SQL-specifics in sql_store
+        """
+        loads all records for the model entity matching the specified condition from the DB
+        :param pycls: The python model class
+        :param condition: the condition, expressed as a DB-specific expression, that the entities must meet to be loaded.
+        :return:
+        """
         query = f"SELECT * FROM {Betty().class_entity(pycls)}" + (f" WHERE {condition}" if condition else '') + ";"
         return Betty().get_store().run_query(query)
 
     @classmethod
     def save(cls, entity) -> int | None:
+        """
+        Inserts or update the supplied model entity in the DB.
+        Insertion/update depends on whether the id attribute of the entity is None (=> insertion) or not (=> update)
+        The stored entity attributes are those returned ny attribute_mappings for the entity python class. Their
+        values are obtained from the entity using the same attribute mapping
+
+        :param entity: a model entity
+        :return: the id of the newly stored entity or else None
+        """
         pycls = type(entity)
-        attr_list = ', '.join(map(lambda x: x[0], Betty().attribute_mappings(pycls)))
+        attr_list = map(lambda x: x[0], Betty().attribute_mappings(pycls))
         attr_values = []
         for mapping in Betty().attribute_mappings(pycls):
             entity_attr = getattr(entity, mapping[1])
@@ -246,8 +304,10 @@ class Betty:
                 # attribute available in the entity as a regular object attribute
                 value = str(entity_attr)
             attr_values.append(f"'{value}'")
-
-        entity.id = Betty().get_store().insert_or_update(Betty().class_entity(type(entity)), attr_list, ', '.join(attr_values))
+        if entity.id is None:
+            entity.id = Betty().get_store().insert(Betty().class_entity(type(entity)), attr_list, attr_values)
+        else:
+            Betty().get_store().update(Betty().class_entity(type(entity)), entity.id, attr_list, attr_values)
         return entity.id
 
 if __name__ == "__main__":
