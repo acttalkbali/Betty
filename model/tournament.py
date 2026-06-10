@@ -28,8 +28,15 @@ class Tournament(Storable):
     def name(self):
         return self._name
     @name.setter
-    def name(self, v):
-        self._name = v or "unnamed" + str(id(self))
+    def name(self, value):
+        self._name = value or "unnamed" + str(id(self))
+
+    @property
+    def sheep_credit(self):
+        return self._sheep_credit
+    @name.setter
+    def sheep_credit(self, value):
+        self._sheep_credit = value
 
     @property
     def start_dt(self):

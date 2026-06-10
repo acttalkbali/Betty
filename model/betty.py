@@ -50,6 +50,19 @@ class Betty:
         attr = f"{prefix}{entity}_id"
         return attr, f"{attr}"
 
+    entities_mapping = {
+           Tournament: "tournament",
+           Phase: "phase",
+           Bettable: "bettable",
+           Bettor: "bettor",
+           Participation: 'participation',
+           Bet: "bet",
+           Bteam: "bteam",
+           Team: "team",
+           SheepLivestock: "sheep_livestock",
+           SheepValue: "sheep_value",
+           Ranking: "ranking"
+           }
 
     @classmethod
     def class_entity(cls, pycls) -> str:
@@ -57,19 +70,7 @@ class Betty:
         :param pycls: The python model class
         :return: The store entity for the supplied python model class
         """
-        dic ={  Tournament: "tournament",
-                Phase: "phase",
-                Bettable: "bettable",
-                Bettor: "bettor",
-                Participation: 'participation',
-                Bet: "bet",
-                Bteam: "bteam",
-                Team: "team",
-                SheepLivestock: "sheep_livestock",
-                SheepValue: "sheep_value",
-                Ranking: "ranking"
-              }
-        return dic.get(pycls)
+        return cls.entities_mapping.get(pycls)
 
     def attribute_mappings(self, pycls):
         """
@@ -103,7 +104,9 @@ class Betty:
                       Betty.private_attribute('pwd')],
                 Participation:
                      [Betty.relates_by_id(Tournament),
-                      Betty.relates_by_id(Bettor)
+                      Betty.relates_by_id(Bettor),
+                      Betty.private_attribute('credit'),
+                      Betty.private_attribute('score')
                      ],
                 Bet:
                      [Betty.relates_by_id(Bettor),
@@ -146,7 +149,8 @@ class Betty:
                  name TEXT NOT NULL UNIQUE,
                  state TEXT, 
                  start_dt TIMESTAMPTZ,
-                 end_dt TIMESTAMPTZ
+                 end_dt TIMESTAMPTZ,
+                 sheep_credit INT
                  );
             """,
             f"""
@@ -181,7 +185,7 @@ class Betty:
                  {cls.references_by_id(Team, 'b')},
                  start_dt TIMESTAMPTZ,
                  state TEXT NOT NULL,
-                 outcome INT
+                 outcome TEXT
                  );
             """,
             f"""
@@ -204,7 +208,9 @@ class Betty:
              CREATE TABLE IF NOT EXISTS {cls.class_entity(Participation)} (
                   id SERIAL PRIMARY KEY,
                   {cls.references_by_id(Tournament)},
-                  {cls.references_by_id(Bettor)}
+                  {cls.references_by_id(Bettor)},
+                  credit INT,
+                  score FLOAT
                   );
              """,
             f"""
@@ -244,18 +250,8 @@ class Betty:
         Run the commands to delete the DB
         :return: None
         """
-        commands = [
-            "DROP TABLE IF EXISTS bet CASCADE;",
-            "DROP TABLE IF EXISTS bettor CASCADE;",
-            "DROP TABLE IF EXISTS bteam CASCADE;",
-            "DROP TABLE IF EXISTS bettable CASCADE;",
-            "DROP TABLE IF EXISTS sheep_value CASCADE;",
-            "DROP TABLE IF EXISTS team CASCADE;",
-            "DROP TABLE IF EXISTS phase CASCADE;",
-            "DROP TABLE IF EXISTS tournament CASCADE;",
-            "DROP TABLE IF EXISTS participation CASCADE;",
-            "DROP TABLE IF EXISTS ranking CASCADE;",
-        ]
+        commands = [f"DROP TABLE IF EXISTS {table} CASCADE;" for table in cls.entities_mapping.values()]
+
         store = cls.get_store()
         if store.run_commands(commands) == True:
             print('DB TABLES DROPPED')
@@ -302,8 +298,8 @@ class Betty:
                 value = entity_attr()
             else:
                 # attribute available in the entity as a regular object attribute
-                value = str(entity_attr)
-            attr_values.append(f"'{value}'")
+                value = entity_attr
+            attr_values.append("NULL" if value is None else f"'{str(value)}'")
         if entity.id is None:
             entity.id = Betty().get_store().insert(Betty().class_entity(type(entity)), attr_list, attr_values)
         else:

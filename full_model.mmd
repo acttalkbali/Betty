@@ -1,0 +1,74 @@
+erDiagram
+    TOURNAMENT ||--|{ PHASE : made_of
+    TEAM ||--|{ PHASE : partcipates
+    PHASE ||--|{ BETTABLE : contains
+    BTEAM ||--o{ BETTOR : contains
+    BETTOR ||--o| BET : prediction
+    BETTOR o|--o| SHEEP_LIVESTOCK : owns
+    SHEEP_LIVESTOCK ||--|| TEAM : supports
+    BET ||--|| BETTABLE : on
+    BETTABLE ||--|{ TEAM : involves
+    CHAT ||--|| TOURNAMENT : relates_to
+    MESSAGE |o--|| CHAT : posted_on
+    MESSAGE ||--|| BETTOR : posted_by
+    ANNOUNCEMENT |o--|| TOURNAMENT : relates_to
+    SCORING_RULE ||--|| PHASE : applies_to
+
+    TOURNAMENT {
+        int id
+        string name
+    }
+
+    BETTABLE {
+        int id
+        int phase_id
+        int team_a_id
+        int team_b_id
+        time start
+        string state "open|locked|complete"
+    }
+    BETTOR {
+        string id
+        string name
+    }
+    BET {
+        int bettor_id
+        string prediction "0|1|2|01|02|12"
+    }
+    TEAM {
+        string id
+        string name
+    }
+    PHASE {
+        int id
+        string name
+    }
+    BTEAM {
+        int id
+        string name
+    }
+    SHEEP_LIVESTOCK {
+        string bettor_id
+        string team_id
+        int qty
+    }
+    CHAT {
+        int tournament_id
+    }
+    MESSAGE {
+        int message_id
+        int bettor_id
+        time timestamp
+        string text
+    }
+    ANNOUNCEMENT {
+        int id
+        time timestamp
+        string text
+    }
+
+    SCORING_RULE {
+        int phase_id
+        string prediction "0|1|2|01|02|12"
+        int score
+    }

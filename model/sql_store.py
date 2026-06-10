@@ -25,11 +25,17 @@ class SqlStore:
         return cls._instance
 
     def __init__(self, **kwargs):
-        if kwargs:
-            self._conn = psycopg.connect(**kwargs)
-        else:
-            self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
+        if not hasattr(self, "_initialised"):
+            if kwargs:
+                self._conn = psycopg.connect(**kwargs)
+            else:
+                print(self.DEFAULT_DB_CONFIG)
+                self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
+                print(self._conn)
+            self._initialised = True
 
+    def reset(self) -> None:
+        cls._instance = None
     # ─────────────────────────────────────────────────────────────────────────────
     # HELPERS — do not modify
     # ─────────────────────────────────────────────────────────────────────────────
@@ -48,14 +54,16 @@ class SqlStore:
         """
         return f"{attr}{op}'{value}'"
 
-    def setup_database(self):
-        with self._conn.cursor() as cur:
-            cur.execute(SETUP_SQL)
-        self._conn.commit()
-        print("Database setup complete.")
+    #def setup_database(self):
+    #    with self._conn.cursor() as cur:
+    #        cur.execute(SETUP_SQL)
+    #    self._conn.commit()
+    #    print("Database setup complete.")
 
     def run_query(self,sql: str) -> list[tuple]:
         print(f"Executing {sql}")
+        if self._conn.closed:
+            self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         with self._conn as conn:
             with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
                 cur.execute(sql)
@@ -63,25 +71,34 @@ class SqlStore:
                 print(f"->{ret}")
                 return ret
 
-    def run_commands(self,commands: list[str]) -> list[dict]:
+    def run_commands(self,commands: list[str]) -> bool:
         success = True
         cmds = ' '.join(commands)
         commands = [cmds]
-        for command in commands:
-            try:
+        print(f"IN run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        if self._conn.closed:
+            self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
+        command = ''
+        try:
+            for command in commands:
                 with self._conn as conn:
                     with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
                         cur.execute(command)
-                conn.commit()
-            except Exception as e:
-                print(f"Failed: {command}: {e}")
-                success = False
-                break
+                    conn.commit()
+                print(f"Succeeded: {command}")
+                print(f"Post commit run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        except Exception as e:
+            print(f"Failed: {command}: {e}")
+            success = False
+
+        print(f"OUT run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
         return success
 
     def insert(self, table:str, attr_list:list[str], attr_values:list[str], returning:str='id') -> int|None:
         id = None
         cmd = f"INSERT INTO {table} ({', '.join(attr_list)}) VALUES ({', '.join(attr_values)}) RETURNING {returning};"
+        if self._conn.closed:
+            self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         try:
             with self._conn as conn:
                 with conn.cursor() as cur:
@@ -96,9 +113,11 @@ class SqlStore:
         return id
 
     def update(self, table:str, id, attr_list:list[str], attr_values:list[str]) -> int|None:
-        condition = "id={id}"
+        condition = f"id={id}"
         attr_value_pairs = ', '.join([f"{attr}={value}" for attr, value in zip(attr_list, attr_values)])
         cmd = f"UPDATE {table} SET {attr_value_pairs} WHERE {condition} RETURNING id;"
+        if self._conn.closed:
+            self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         try:
             with self._conn as conn:
                 with conn.cursor() as cur:

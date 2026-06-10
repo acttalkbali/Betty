@@ -26,7 +26,7 @@ def input_int(prompt:str, n_min:int, n_max:int)->int:
     """
     n = None
     while n is None or n < n_min or n > n_max:
-        n = int_or_none(input(f"{prompt} [{n_min}-{n_max}]"))
+        n = int_or_none(input(f"{prompt} [{n_min}-{n_max}] : "))
     return n
 
 def input_selection(options:list[Any], fn: callable, exit_option=0)->int:
@@ -41,7 +41,7 @@ def input_selection(options:list[Any], fn: callable, exit_option=0)->int:
     for i, option in enumerate(options):
         print(f"{i+1}: {fn(option)}")
 
-    return input_int("Your selection: ", 0 if exit_option==0 else 1, len(options))-1 # -1 so it can be used as an index
+    return input_int("Your selection", 0 if exit_option==0 else 1, len(options))-1 # -1 so it can be used as an index
 
 def error_msg(msg:str)->None:
     """
@@ -60,7 +60,6 @@ def yes_no(question:str) -> bool:
     answer = ''
     while answer not in ['y', 'n']:
         answer = input(f"{question} [y/n] : ").lower()
-    print(f"yesno <{answer}>")
     return answer == 'y'
 
 def info(msg:str)->None:
@@ -83,15 +82,21 @@ class UiBettorContext:
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
+            print("CREATING UiBettorContext")
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
-        self.logged_in = None
-        self.tournament_selected_name = None
-        self.tournament_selected = None
-        self.participation_id = None
-        self.credit = None
+        if not hasattr(self, "_initialised"):
+            self.logged_in = None
+            self.tournament_selected_name = None
+            self.tournament_selected = None
+            self.participation_id = None
+            self.credit = None
+            self._initialised = True
+
+    def reset(self) -> None:
+        cls._instance = None
 
 #================== UI control
 
@@ -135,6 +140,7 @@ def login(bettor_name, bettor_pwd) -> Bettor|None:
         else:
             UiBettorContext().logged_in = bettor
             info("You are logged in")
+            print(f"logged_in = {UiBettorContext().logged_in}")
             return bettor
     else:
         error_msg(f"{bettor_name} is not registered")
@@ -175,19 +181,21 @@ def tournament_selection(bettor, states:list[str]=None) -> int:
     """
     if  UiBettorContext().logged_in:
         states_condition = f" AND t.state IN ({str(states)[1:-1]})" if states else ''
-        attr_dicts = Betty().query(f"SELECT t.id, t.name, p.id, p.credit FROM participation p, tournament t WHERE p.bettor_id={bettor.id} {states_condition}")
+        attr_dicts = Betty().query(f"SELECT t.id, t.name, p.id AS participation_id, p.credit FROM participation p, tournament t WHERE p.bettor_id={bettor.id} {states_condition}")
         if len(attr_dicts)==0:
             if yes_no("You have no ongoing tournament. Register to one?"):
                 tournament_registration(bettor)
         else:
             if len(attr_dicts) > 1:
                 selection = input_selection(attr_dicts, lambda attr_dict: attr_dict['t.name'])
-            elif len(attr_dicts)==1:
+            else:
                 selection = 0
-            UiBettorContext().tournament_selected_name = attr_dicts[selection]['t.name']
-            UiBettorContext().tournament_selected = attr_dicts[selection]['t.id']
-            UiBettorContext().participation_id = attr_dicts[selection]['p.id']
-            UiBettorContext().credit = attr_dicts[selection]['p.credit']
+            UiBettorContext().tournament_selected_name = attr_dicts[selection]['name']
+            UiBettorContext().tournament_selected = attr_dicts[selection]['id']
+            UiBettorContext().participation_id = attr_dicts[selection]['participation_id']
+            UiBettorContext().credit = attr_dicts[selection]['credit']
+            return selection
+    return -1
 
 
 """
@@ -239,16 +247,16 @@ def bet(bettor):
     The bettor enters its bet for any of the OPEN available T bettable
     """
     if  UiBettorContext().logged_in:
-        if not bettor.tournament_selected:
+        if not UiBettorContext().tournament_selected:
             tournament_selection(bettor, ['OPEN', 'RUNNING'])
         if UiBettorContext().tournament_selected:
-            attr_dicts = Betty().query(f"SELECT b.id, b.team_a_id, b.team_b_id, b.start_dt FROM bettable b, tournament tr WHERE b.tournament_id=tr.id AND b.start_dt < NOW() ORDER BY b.start_dt ASC")
+            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt FROM bettable b, tournament tr WHERE b.tournament_id=tr.id AND b.start_dt < NOW() ORDER BY b.start_dt ASC")
 
             # Choose from the applicable OPEN bettables
             choices = []
             for attr_dict in attr_dicts:
-                team_a = Team(Betty(), id=attr_dict['b.team_a_id'])
-                team_b = Team(Betty(), id=attr_dict['b.team_b_id'])
+                team_a = Team(Betty(), id=attr_dict['b.a_team_id'])
+                team_b = Team(Betty(), id=attr_dict['b.b_team_id'])
                 team_a = team_a.load_by_id()
                 team_b = team_b.load_by_id()
                 choices.append(f"{attr_dict['start_dt']} : {team_a} - {team_b}")
@@ -259,6 +267,10 @@ def bet(bettor):
                 bet = Bet(Betty(), bettor, attr_dicts[selection]['b.id'], prediction)
                 bet.save()
                 info("Your prediction has been registered")
+        else:
+            error_msg("Yor must first select a tournament")
+    else:
+        error_msg("You must be logged in to make a bet")
 
 def tournament_status():
     """
@@ -287,7 +299,7 @@ def show_ranking(bettor):
     The bettor choose 'tournament ranking' from the available actions.
     The tournament's current bettor ranking is listed.
     """
-    if bettor.logged_in:
+    if UiBettorContext().logged_in:
         if UiBettorContext().tournament_selected:
             attr_dicts = Betty().query(
                 f"SELECT r.id, b.nickname, r.tournament_id, r.score, r.rank FROM ranking r, tournament tr, bettor b WHERE r.tournament_id={UiBettorContext().tournament_selected} ORDER BY r.score DESC")
@@ -305,16 +317,15 @@ if __name__ == '__main__':
     #load_dotenv()
     bettor = login('wys','wys') # todo remove these hard-coded parameter values
     tournament = tournament_selection(bettor)
-    options = [(
-                'Make a bet', lambda : bet(bettor)),
-                'Show ranking', lambda : show_ranking(bettor),
-                'Buy sheeps', lambda : buy_sheeps(bettor),
-                'Status', lambda : tournament_status(),
-                'Logout', lambda : logout(bettor)
-                ]
+    options = [('Make a bet', lambda : bet(bettor)),
+               ('Show ranking', lambda : show_ranking(bettor)),
+               ('Buy sheeps', lambda : buy_sheeps(bettor)),
+               ('Status', lambda : tournament_status()),
+               ('Logout', lambda : logout(bettor))]
     selection = 0
     while True:
         selection = input_selection(options, lambda x:x[0], exit_option=5)
+        print(f"Selection was {selection} => {options[selection][1]}")
         options[selection][1]() # execute the action
-        if selection != 5-1:
+        if selection == 5-1:
             break
