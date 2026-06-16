@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .storable import Storable
 from .phase import Phase
@@ -10,20 +10,20 @@ BETTABLE_STATE_CLOSED = "CLOSED"
 
 class Bettable(Storable):
 
-    def __init__(self, store, phase: Phase, team_a: Team, team_b: Team, start_dt: datetime, outcome:int|None=None):
-        super().__init__(store)
-        self._name = f"{phase.name}:{team_a.name}-{team_b.name}"
+    def __init__(self, store, phase: Phase|int, team_a: Team|int, team_b: Team|int, start_dt: datetime, outcome:int|None=None, id:int|None=None):
+        super().__init__(store, id)
+        self._name = f"{phase.name if isinstance(phase,Phase) else str(phase)}:{team_a.name if isinstance(team_a, Team) else str(team_a)} - {team_b.name if isinstance(team_b, Team) else str(team_b)}"
         self._phase = phase
         self._team_a = team_a
         self._team_b = team_b
         self._start_dt = start_dt
-        self._state = BETTABLE_STATE_OPEN if start_dt > datetime.now() else BETTABLE_STATE_RUNNING
+        self._state = BETTABLE_STATE_OPEN if start_dt > datetime.now(timezone.utc) else BETTABLE_STATE_RUNNING
         self._outcome = outcome
 
     # built_ins -----------------------------------------------------------------
 
     def __str__(self):
-        return f'Bettable {self._team_a.name} - {self._team_b.name} [{start}]'
+        return f'Bettable {self._team_a.name} - {self._team_b.name} [{self._start_dt}]'
 
     def __repr__(self):
         return super().__repr__()

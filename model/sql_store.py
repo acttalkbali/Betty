@@ -4,7 +4,7 @@ import os
 
 class SqlStore:
     _instance = None
-
+    _debug = False
     DEFAULT_DB_CONFIG = {
         #"host": os.getenv("DB_HOST"),
         #"port": os.getenv("DB_PORT"),
@@ -15,8 +15,10 @@ class SqlStore:
         "port": 5432,
         "dbname": 'betty',
         "user": 'postgres',
-        "password": 'postgres'
+        "password": 'pdetoile'
     }
+    def debug(self,s):
+        if self._debug: print(s)
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -61,21 +63,21 @@ class SqlStore:
     #    print("Database setup complete.")
 
     def run_query(self,sql: str) -> list[tuple]:
-        print(f"Executing {sql}")
+        self.debug(f"Executing {sql}")
         if self._conn.closed:
             self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         with self._conn as conn:
             with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
                 cur.execute(sql)
                 ret = cur.fetchall()
-                print(f"->{ret}")
+                self.debug(f"->{ret}")
                 return ret
 
     def run_commands(self,commands: list[str]) -> bool:
         success = True
         cmds = ' '.join(commands)
         commands = [cmds]
-        print(f"IN run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        self.debug(f"IN run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
         if self._conn.closed:
             self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         command = ''
@@ -85,13 +87,13 @@ class SqlStore:
                     with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
                         cur.execute(command)
                     conn.commit()
-                print(f"Succeeded: {command}")
-                print(f"Post commit run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+                self.debug(f"Succeeded: {command}")
+                self.debug(f"Post commit run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
         except Exception as e:
             print(f"Failed: {command}: {e}")
             success = False
 
-        print(f"OUT run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        self.debug(f"OUT run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
         return success
 
     def insert(self, table:str, attr_list:list[str], attr_values:list[str], returning:str='id') -> int|None:
@@ -127,7 +129,7 @@ class SqlStore:
                         if rows:
                             id = rows[0]
                     conn.commit()
-                    print(f"Success {id} <- {cmd}")
+                    self.debug(f"Success {id} <- {cmd}")
         except Exception as e:
             print(f"Failed to {cmd} : {e}")
         return id

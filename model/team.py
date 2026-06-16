@@ -1,21 +1,18 @@
 from datetime import datetime, timedelta
 from .storable import Storable
-from .sheep_value import SheepValue
-from .betty import *
 
 #from SqlStore import SqlStore
 
 class Team(Storable):
 
-    def __init__(self, store, name:str, tournament:Tournament=None, sheep_value:int=None):
+    def __init__(self, store, name:str|None=None, id:int|None=None):
         super().__init__(store)
-        self._id = None
-        self._name = name or "unnamed"+str(id(self))
-        self._tournament = tournament
-        self._sheep_value = SheepValue(store, self, tournament, sheep_value)
+        self._id = id
+        self._name = name or "unnamed"+str(self.id)
+        #self._tournament = tournament
 
     def __str__(self):
-        return f'Team {self._name}'
+        return f'{self._name}'
 
     def __repr__(self):
         return super().__repr__()
@@ -31,16 +28,28 @@ class Team(Storable):
     def tournament_id(self):
         return self._tournament._id
 
-    def load(self, condition):
-        self.store_mgr.load(self, f"tournament_id={self.tournament_id}" + (f" AND {condition}" if condition else ''))
+    def load(self, condition:str = ''):
+        # todo use the mini model mapping to hide the attribute names
+        if self.id:
+            condition += self.store.wrap_condition('id', '=', self.id)
+        elif self._name:
+            condition += self.store.wrap_condition('name', '=', self._name)
+        results = self.store_mgr.load(type(self), condition)
+        if len(results)==1:
+            self._name = results[0]['name']
+            self._id = results[0]['id']
+            #self._tournament_id = results[0]['tournament_id']
+            #self._sheep_value = results[0]['sheep_value']
+            #print(f"Filled {self}")
+        return results
 
     def load_by_id(self):
-        self.store_mgr.load(self, f"id={self._id}")
+        raise NotImplementedError
 
     def save(self):
         self.store_mgr.save(self)
-        if self._tournament and self._sheep_value:
-            self._sheep_value.save()
+        #if self._tournament and self._sheep_value:
+        #    self._sheep_value.save()
 
 if __name__ == '__main__':
     from .betty import Betty

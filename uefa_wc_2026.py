@@ -1,14 +1,15 @@
 from model.tournament import Tournament
 from model.phase import Phase
 from model.team import Team
+from model.sheep_value import SheepValue
 from model.bettable import Bettable
 from datetime import datetime
 
 def setup(betty):
     wc2026 = Tournament(betty,
                         name="FIFA World Cup 2026",
-                        start_date=datetime.fromisoformat('2026-06-11 21:00'),
-                        end_date=datetime.fromisoformat('2026-07-19 21:00'))
+                        start_date=datetime.fromisoformat('2026-06-11 21:00:00+00'),
+                        end_date=datetime.fromisoformat('2026-07-19 21:00:00+00'))
     phases = [
                 {
                     'name' : '1st round',
@@ -42,12 +43,12 @@ def setup(betty):
                 }
             ]
     calendar = [
-        ('2026-06-11 21:00', 'Mexico', 'South Africa'),
-        ('2026-06-12 04:00', 'South Korea', 'Czech Republic'),
-        ('2026-06-18 18:00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][0][0]),
-        ('2026-06-19 03:00', phases[0]['pools']['Group A'][2][0], phases[0]['pools']['Group A'][1][0]),
-        ('2026-06-25 03:00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][2][0]),
-        ('2026-06-25 03:00', phases[0]['pools']['Group A'][0][0], phases[0]['pools']['Group A'][1][0]),
+        ('2026-06-11 21:00+00', 'Mexico', 'South Africa'),
+        ('2026-06-12 04:00+00', 'South Korea', 'Czech Republic'),
+        ('2026-06-18 18:00+00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][0][0]),
+        ('2026-06-19 03:00+00', phases[0]['pools']['Group A'][2][0], phases[0]['pools']['Group A'][1][0]),
+        ('2026-06-25 03:00+00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][2][0]),
+        ('2026-06-25 03:00+00', phases[0]['pools']['Group A'][0][0], phases[0]['pools']['Group A'][1][0]),
     ]
 
     wc2026.save()
@@ -57,8 +58,10 @@ def setup(betty):
         phase.save()
         for group_name, group_compo in phase_dict['pools'].items():
             for team_name, sheep_value in group_compo:
-                teams[team_name] = Team(betty, team_name, wc2026, sheep_value)
-                teams[team_name] .save()
+                teams[team_name] = Team(betty, team_name) # , wc2026, sheep_value
+                teams[team_name].save()
+                sheep_value = SheepValue(betty, teams[team_name], wc2026, sheep_value)
+                sheep_value.save()
         for start_dt, team_a_name, team_b_name in calendar:
             bettable = Bettable(betty, phase, teams[team_a_name], teams[team_b_name], datetime.fromisoformat(start_dt))
             bettable.save()

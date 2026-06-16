@@ -5,9 +5,9 @@ from .bteam import Bteam
 from .phase import Phase
 from .scoring_rule import ScoringRule
 from .sheep_livestock import SheepLivestock
-from .sheep_value import SheepValue
 from .team import Team
 from .tournament import Tournament
+from .sheep_value import SheepValue
 from .participation import Participation
 from .ranking import Ranking
 from .sql_store import SqlStore
@@ -116,8 +116,7 @@ class Betty:
                 Bteam:
                      [('', '')],
                 Team:
-                     [Betty.private_attribute('name'),
-                      Betty.relates_by_id(Tournament)],
+                     [Betty.private_attribute('name')],
                 SheepLivestock:
                      [('', '')],
                 SheepValue:
@@ -165,7 +164,6 @@ class Betty:
             f"""
             CREATE TABLE IF NOT EXISTS {cls.class_entity(Team)} (
                  id SERIAL PRIMARY KEY,
-                 {cls.references_by_id(Tournament)},
                  name TEXT
                  );
             """,
@@ -219,7 +217,8 @@ class Betty:
                  {cls.references_by_id(Bettable)},
                  {cls.references_by_id(Bettor)},
                  prediction INT NOT NULL,
-                 score FLOAT
+                 score FLOAT,
+                 CONSTRAINT UC_Bet UNIQUE ({cls.class_entity(Bettable)}_id,{cls.class_entity(Bettor)}_id)
                  );
             """,
             f"""
@@ -274,8 +273,12 @@ class Betty:
         :param condition: the condition, expressed as a DB-specific expression, that the entities must meet to be loaded.
         :return:
         """
-        query = f"SELECT * FROM {Betty().class_entity(pycls)}" + (f" WHERE {condition}" if condition else '') + ";"
-        return Betty().get_store().run_query(query)
+        table = Betty().class_entity(pycls)
+        if table:
+            query = f"SELECT * FROM {table}" + (f" WHERE {condition}" if condition else '') + ";"
+            return Betty().get_store().run_query(query)
+        else:
+            return None
 
     @classmethod
     def save(cls, entity) -> int | None:

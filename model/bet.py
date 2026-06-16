@@ -2,11 +2,12 @@ from .storable import Storable
 from .bettor import Bettor
 from .bettable import Bettable
 
-from datetime import datetime
+from datetime import datetime, timezone
+
 
 class Bet(Storable):
 
-    def __init__(self, store, bettor: Bettor, bettable: Bettable, prediction: int, score:int|None=None):
+    def __init__(self, store, bettor: Bettor, bettable: Bettable, prediction: int|None=None, score:int|None=None):
         super().__init__(store)
         self._name = f"{bettor}:{bettable}={prediction}"
         self._bettor = bettor
@@ -35,8 +36,21 @@ class Bet(Storable):
     # storable -----------------------------------------------------------------
 
     def load(self, condition=''):
-        return self.store_mgr.load(self, f"bettor_id={self.bettor_id} AND bettable_id={self.bettable_id}" + (f" AND {condition}" if condition else ''))
+        conditions = []
+        if self.id:
+            conditions.append(self.store.wrap_condition('id', '=', self.id))
+        else:
+            if self._bettor:
+                conditions.append(self.store.wrap_condition('bettor_id', '=', self.bettor_id))
+            if self._bettable:
+                conditions.append(self.store.wrap_condition('bettable_id', '=', self.bettable_id))
+        result = self.store_mgr.load(type(self), ' AND '.join(conditions))
+        if len(result)==1:
+            self._prediction = result[0]['prediction']
+            self._score = result[0]['score']
+            self._id = result[0]['id']
+        return result
 
     def save(self):
-        if self.bettable._start_dt < datetime.now():
+        if self._bettable._start_dt < datetime.now().replace(tzinfo=timezone.utc):
             self.store_mgr.save(self)

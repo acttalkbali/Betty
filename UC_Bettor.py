@@ -211,12 +211,12 @@ def buy_sheeps(bettor):
     The Bettor buys sheep. Its wallet is debited accordingly
     """
     if  UiBettorContext().logged_in:
-        if not bettor.tournament_selected:
+        if not UiBettorContext().tournament_selected:
             info("Select a tournament first")
         else:
             # Retrieve the teams value for this tournament
             attr_dicts = Betty().query(
-                f"SELECT t.id, t.name, t.value FROM team t, tournament tr WHERE t.tournament_id=tr.id ORDER BY t.value DESC"
+                f"SELECT t.id, t.name, s.sheep_value FROM team t, sheep_value s, tournament tr WHERE s.tournament_id=tr.id AND s.team_id = t.id  ORDER BY s.sheep_value DESC"
             )
             # Choose from the applicable OPEN bettables
             while True:
@@ -250,22 +250,27 @@ def bet(bettor):
         if not UiBettorContext().tournament_selected:
             tournament_selection(bettor, ['OPEN', 'RUNNING'])
         if UiBettorContext().tournament_selected:
-            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt FROM bettable b, tournament tr WHERE b.tournament_id=tr.id AND b.start_dt < NOW() ORDER BY b.start_dt ASC")
+            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, p.id AS phase_id FROM bettable b, phase p, tournament tr WHERE b.phase_id=p.id AND p.tournament_id = tr.id AND b.start_dt > NOW() ORDER BY b.start_dt ASC")
 
             # Choose from the applicable OPEN bettables
             choices = []
             for attr_dict in attr_dicts:
-                team_a = Team(Betty(), id=attr_dict['b.a_team_id'])
-                team_b = Team(Betty(), id=attr_dict['b.b_team_id'])
-                team_a = team_a.load_by_id()
-                team_b = team_b.load_by_id()
-                choices.append(f"{attr_dict['start_dt']} : {team_a} - {team_b}")
-            selection = input_selection(choices, lambda x: x)
+                print(attr_dicts)
+                team_a = Team(Betty(), id=attr_dict['a_team_id'])
+                team_b = Team(Betty(), id=attr_dict['b_team_id'])
+                team_a.load()
+                team_b.load()
+                bettable = Bettable(Betty(), attr_dict['phase_id'], team_a, team_b, attr_dict['start_dt'], id=attr_dict['id'])
+                bet = Bet(Betty(), bettor, bettable)
+                bet.load()
+                choices.append((bettable,bet))
+                #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")
+            selection = input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._team_a} - {x[0]._team_b}" + (f" <<{x[1]._prediction}>>" if x[1]._prediction else ''))
 
             if selection >= 0:
-                prediction = input(f"{choices[selection]} result prediction (0=nul, 1=A , 2=B, 12=A or B, 10=A or nul, 20=B or nul")
-                bet = Bet(Betty(), bettor, attr_dicts[selection]['b.id'], prediction)
-                bet.save()
+                prediction = input(f"{choices[selection][0]} result prediction (1=A, 2=B, 12=A or B, 10=A or draw, 20=B or draw): ")
+                choices[selection][1]._prediction = int(prediction)
+                choices[selection][1].save()
                 info("Your prediction has been registered")
         else:
             error_msg("Yor must first select a tournament")
@@ -280,15 +285,15 @@ def tournament_status():
     The tournament's bettable are listed in accordance with their status
     """
     if  UiBettorContext().logged_in:
-        if not bettor.tournament_selected:
+        if not UiBettorContext().tournament_selected:
             tournament_selection(bettor, ['OPEN', 'RUNNING'])
         if UiBettorContext().tournament_selected:
-            attr_dicts = Betty().query(f"SELECT b.id, b.team_a_id, b.team_b_id, b.start_dt, b.state FROM bettable b, tournament tr WHERE b.tournament_id=tr.id ORDER BY b.start_dt ASC")
+            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, b.state FROM bettable b, phase p, tournament tr WHERE b.phase_id = p.id AND p.tournament_id=tr.id ORDER BY b.start_dt ASC")
             for attr_dict in attr_dicts:
-                team_a = Team(Betty(), id=attr_dict['b.team_a_id'])
-                team_b = Team(Betty(), id=attr_dict['b.team_b_id'])
-                team_a = team_a.load_by_id()
-                team_b = team_b.load_by_id()
+                team_a = Team(Betty(), id=attr_dict['a_team_id'])
+                team_b = Team(Betty(), id=attr_dict['b_team_id'])
+                team_a.load()
+                team_b.load()
                 print(f"{attr_dict['start_dt']} : {team_a} - {team_b}")
 
 
@@ -325,7 +330,6 @@ if __name__ == '__main__':
     selection = 0
     while True:
         selection = input_selection(options, lambda x:x[0], exit_option=5)
-        print(f"Selection was {selection} => {options[selection][1]}")
         options[selection][1]() # execute the action
         if selection == 5-1:
             break

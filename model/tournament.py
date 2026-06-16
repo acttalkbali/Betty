@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from .storable import Storable
-from .betty import *
 
 #from SqlStore import SqlStore
 
@@ -15,7 +14,7 @@ class Tournament(Storable):
         self._name = name
         self._start_dt = start_date
         self._end_dt = end_date #max(self._start_dt, end_date or datetime.now() + timedelta(days=365))
-        self._state = TOURNAMENT_STATE_OPEN if (start_date is None or start_date > datetime.now()) else TOURNAMENT_STATE_RUNNING
+        self._state = TOURNAMENT_STATE_OPEN if (start_date is None or start_date > datetime.now(timezone.utc)) else TOURNAMENT_STATE_RUNNING
         self._sheep_credit = sheep_credit
 
     def __str__(self):
@@ -34,7 +33,7 @@ class Tournament(Storable):
     @property
     def sheep_credit(self):
         return self._sheep_credit
-    @name.setter
+    @sheep_credit.setter
     def sheep_credit(self, value):
         self._sheep_credit = value
 
