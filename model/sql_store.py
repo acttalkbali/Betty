@@ -4,7 +4,7 @@ import os
 
 class SqlStore:
     _instance = None
-    _debug = False
+    _debug = True
     DEFAULT_DB_CONFIG = {
         #"host": os.getenv("DB_HOST"),
         #"port": os.getenv("DB_PORT"),

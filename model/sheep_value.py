@@ -32,9 +32,12 @@ class SheepValue(Storable):
     def tournament_id(self):
         return self._tournament._id if isinstance(self._tournament, Tournament) else 0
     #property
-    def team_id(self):
+    def team_id(self) -> int|None:
         return self._team._id if isinstance(self._team, Team) else 0
 
+    #property
+    def team_name(self):
+        return self._team._name if isinstance(self._team, Team) else f"Team {self.team_id}"
 
     def load(self, condition = ''):
         self.store_mgr.load(self)

@@ -118,7 +118,9 @@ class Betty:
                 Team:
                      [Betty.private_attribute('name')],
                 SheepLivestock:
-                     [('', '')],
+                     [Betty.relates_by_id(Bettor),
+                      Betty.relates_by_id(SheepValue),
+                      Betty.private_attribute('quantity')],
                 SheepValue:
                     [Betty.relates_by_id(Tournament),
                      Betty.relates_by_id(Team),
@@ -202,6 +204,14 @@ class Betty:
                  {cls.references_by_id(Bteam, nullable=True)}
                  );
             """,
+            f"""
+              CREATE TABLE IF NOT EXISTS {cls.class_entity(SheepLivestock)} (
+                   id SERIAL PRIMARY KEY,
+                   {cls.references_by_id(Bettor)},
+                   {cls.references_by_id(Team)},
+                   quantity INT
+                   );
+              """,
             f"""
              CREATE TABLE IF NOT EXISTS {cls.class_entity(Participation)} (
                   id SERIAL PRIMARY KEY,

@@ -49,6 +49,6 @@ class Participation(Storable):
         self.store_mgr.run_query(f"SELECT * FROM {Betty().class_entity[type(self)]}" + (f" WHERE {condition}" if condition else '') + ";")
 
     def save(self):
-        self.store_mgr.save(self)
+        return self.store_mgr.save(self)
 
 
