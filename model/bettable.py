@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+from importlib.metadata import requires
 
-from .storable import Storable
+from .storable import Storable, Referenceable, Field, DbDate, DbText
 from .phase import Phase
 from .team import Team
 
@@ -9,16 +10,24 @@ BETTABLE_STATE_RUNNING = "RUNNING"
 BETTABLE_STATE_CLOSED = "CLOSED"
 
 class Bettable(Storable):
-
+    """
+    id SERIAL PRIMARY KEY,
+    {cls.references_by_id(Phase)},
+    {cls.references_by_id(Team, 'a')},
+    {cls.references_by_id(Team, 'b')},
+    start_dt TIMESTAMPTZ,
+    state TEXT NOT NULL,
+    outcome TEXT
+    """
     def __init__(self, store, phase: Phase|int, team_a: Team|int, team_b: Team|int, start_dt: datetime, outcome:int|None=None, id:int|None=None):
         super().__init__(store, id)
         self._name = f"{phase.name if isinstance(phase,Phase) else str(phase)}:{team_a.name if isinstance(team_a, Team) else str(team_a)} - {team_b.name if isinstance(team_b, Team) else str(team_b)}"
-        self._phase = phase
-        self._team_a = team_a
-        self._team_b = team_b
-        self._start_dt = start_dt
-        self._state = BETTABLE_STATE_OPEN if start_dt > datetime.now(timezone.utc) else BETTABLE_STATE_RUNNING
-        self._outcome = outcome
+        self._phase = Referenceable(phase)
+        self._team_a = Referenceable(team_a)
+        self._team_b = Referenceable(team_b)
+        self._start_dt = Field(start_dt, DbDate, required=False) # Todo required=True?
+        self._state = Field(BETTABLE_STATE_OPEN if start_dt > datetime.now(timezone.utc) else BETTABLE_STATE_RUNNING, DbText, dflt=BETTABLE_STATE_OPEN)
+        self._outcome = Field(outcome, DbText, required=False)
 
     # built_ins -----------------------------------------------------------------
 

@@ -1,13 +1,14 @@
-from .storable import Storable
+from .storable import Storable, Field, DbText, UniqueField
+
 
 class Bettor(Storable):
 
     def __init__(self, store, name, pwd=None, email=None, nickname=None, id=None):
         super().__init__(store, id)
-        self._name = name
-        self._nickname = nickname
-        self._email = email
-        self._pwd = pwd
+        self._name = Field(name, DbText)
+        self._nickname = UniqueField(nickname, DbText)
+        self._email = UniqueField(email, DbText)
+        self._pwd = Field(pwd, DbText)
 
     def __str__(self):
         return f"Bettor {self._name} alias '{self._nickname}'"
@@ -20,6 +21,8 @@ class Bettor(Storable):
     #    self.store_mgr.load(cls, condition)
 
     def load(self, condition = ''):
+        return super().load(condition)
+        """
         # todo use the mini model mapping to hide the attribute names
         if self.id:
             condition += self.store.wrap_condition('id', '=', self.id)
@@ -33,9 +36,10 @@ class Bettor(Storable):
             self._pwd = results[0]['pwd']
             self._nickname = results[0]['nickname']
             print(f"Filled {self}")
-        return results
+        """
 
     def save(self):
-        self.store_mgr.save(self)
+        super().save()
+        #self.store_mgr.save(self)
 
 

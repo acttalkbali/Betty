@@ -1,13 +1,22 @@
-from model.storable import Storable
+from model.storable import Storable, Field, UniqueField, Referenceable, DbText
+from model.tournament import Tournament
+
 
 class Phase(Storable):
+    """
+    id SERIAL PRIMARY KEY,
+    {cls.references_by_id(Tournament)},
+    name TEXT,
+    state TEXT NOT NULL,
+    scoring TEXT
+    """
     def __init__(self, store, name:str, tournament:Tournament, state:str='', scoring:str=''):
         super().__init__(store)
-        self._name = name
-        self._tournament = tournament
-        self._tournament_id = tournament._id
-        self._state = state
-        self._scoring = scoring
+        self._name = Field(name, DbText)
+        self._tournament = Referenceable(tournament)
+        #self._tournament_id = tournament._id
+        self._state = Field(state, DbText)
+        self._scoring = Field(scoring, DbText)
 
     def __str__(self):
         return f'Phase {self._name}'
@@ -23,7 +32,7 @@ class Phase(Storable):
         self._name = v or "unnamed" + str(id(self))
 
     def tournament_id(self):
-        return self._tournament._id
+        return self._tournament.id
 
     def load(self, condition = ''):
         self.store_mgr.load(self)

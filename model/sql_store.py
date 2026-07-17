@@ -15,7 +15,7 @@ class SqlStore:
         "port": 5432,
         "dbname": 'betty',
         "user": 'postgres',
-        "password": 'pdetoile'
+        "password": 'postgres'
     }
     def debug(self,s):
         if self._debug: print(s)

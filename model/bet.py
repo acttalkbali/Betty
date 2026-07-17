@@ -1,4 +1,4 @@
-from .storable import Storable
+from .storable import Storable, UniqueField, Field, DbText, DbFloat, Referenceable
 from .bettor import Bettor
 from .bettable import Bettable
 
@@ -9,11 +9,12 @@ class Bet(Storable):
 
     def __init__(self, store, bettor: Bettor, bettable: Bettable, prediction: int|None=None, score:int|None=None):
         super().__init__(store)
+        self._id = UniqueField(self._id)
         self._name = f"{bettor}:{bettable}={prediction}"
-        self._bettor = bettor
-        self._bettable = bettable
-        self._prediction = prediction # eg. 10=Team_a victory, 01=Team b Victory, 00=Nul, 11=Team_a or Team_b victory, 10=Team_a or nul, 02=Team_b or nul
-        self._score = score
+        self._bettor = Referenceable(bettor)
+        self._bettable = Referenceable(bettable)
+        self._prediction = Field(prediction, DbText) # eg. 10=Team_a victory, 01=Team b Victory, 00=Nul, 11=Team_a or Team_b victory, 10=Team_a or nul, 02=Team_b or nul
+        self._score = Field(score, DbFloat, required=False)
 
     # built_ins -----------------------------------------------------------------
 
