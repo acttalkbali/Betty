@@ -1,9 +1,19 @@
-from abc import ABC, abstractmethod
+import re
+from abc import ABC, abstractmethod, ABCMeta
 from email.policy import default
 from functools import reduce
 from importlib.metadata import requires
 
 def dbfy(name : str):
+    if name:
+        name.strip('_')
+        pattern = re.compile(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+        name = pattern.sub('_', name).lower()
+        return name
+    else:
+        return None
+
+def dbfy_value(name : str):
     return name.strip('_') if name else None
 
 class DbFieldType(ABC):
@@ -29,6 +39,15 @@ class Field:
         self._required = required
         self._dflt = dflt
 
+    def dbfy_value(self):
+        return f"'{self._value}'"
+
+    def col_name(self):
+        return self._name
+
+    def dbfy_name(self, base_name):
+        return base_name.strip('_') if base_name else None
+
 class UniqueField(Field):
     def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
         super().__init__(value, db_type, name, required=required, dflt=dflt)
@@ -39,36 +58,62 @@ class UniqueConstraint:
 
 class Referenceable(Field):
     def __init__(self, referred: Storable, db_type=DbInt, name=None, required=True, dflt=None):
-        super().__init__(referred.id._value if isinstance(referred, Storable) else referred, db_type, name, required, dflt)
+        super().__init__(referred.id if isinstance(referred, Storable) else referred, db_type, name, required, dflt)
         self._referred = referred
         self.id = referred.id
         self.store_mgr = referred.store_mgr
 
+    def dbfy_name(self, base_name):
+        return f"{super().dbfy_name(base_name)}_id"
+
+
+class StorableMeta(ABCMeta):
+    def __new__(mcs, name, bases, attrs):
+        # Define class attributes
+        attrs['_class_initialized'] = False
+        attrs['_uniqueFields'] = None
+        attrs['_uniqueConstraints'] = None
+        attrs['_fields'] = None
+        if not attrs.get('_table_', None):
+            # if no table name is given, deduce our own from the class name
+            attrs['_table_'] = dbfy(name)
+        return super().__new__(mcs, name, bases, attrs)
+
 class Storable(ABC):
 
     # class attributes
-    _class_initialized = False
-    _uniqueFields:list[str] = None
-    _uniqueConstraints = None
-    _fields = None
+    #_class_initialized = False
+    #_uniqueFields = None
+    #_uniqueConstraints = None
+    #_fields = None
 
     @classmethod
     def init_class(cls, instance):
         '''
         Collect the name of the attributes which are Fields, uniqueFields or part of UniqueConstraints
         '''
-        if not cls._class_initialized:
-            if cls._uniqueFields is None:
-                cls._uniqueFields = {k for k,v in instance.__dict__.items() if isinstance(v, UniqueField)}
-            if cls._uniqueConstraints is None:
-                cls._uniqueConstraints = {k for k,v in instance.__dict__.items() if isinstance(v, UniqueConstraint)}
-            if cls._fields is None:
-                cls._fields = {k for k,v in instance.__dict__.items() if isinstance(v, Field)}
-            cls._class_initialized = True
+        instance_class = type(instance)
+        if not instance_class._class_initialized:
+            if instance_class._uniqueFields is None:
+                instance_class._uniqueFields = []
+                for k, v in instance.__dict__.items():
+                    if isinstance(v, UniqueField):
+                        instance_class._uniqueFields.append(k)
+                        v._name = v.dbfy_name(k) or k
+            if instance_class._uniqueConstraints is None:
+                instance_class._uniqueConstraints = {k for k,v in instance.__dict__.items() if isinstance(v, UniqueConstraint)}
+            if instance_class._fields is None:
+                instance_class._fields = []
+                for k, v in instance.__dict__.items():
+                    if isinstance(v, Field):
+                        instance_class._fields.append(k)
+                        v._name = v.dbfy_name(k) or k
+            print(f"{type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
+            instance_class._class_initialized = True
 
     def __init__(self, store_mgr, id=None):
         super().__init__()
-        self._id = id or None
+        self._id = UniqueField(id or None)
         self.store_mgr = store_mgr
         if self._uniqueFields is None:
             self._uniqueFields = []
@@ -137,13 +182,14 @@ class Storable(ABC):
 
             if field._value is not None:
                 col_list.append(field._name or dbfy(attr_name))
-                col_values.append(field._value)
+                col_values.append(field.dbfy_value())
 
         # If _id is None, this is considered an insertion, else an update
-        if self._id is None:
+        if self._id is None or self._id._value is None:
+            print(f"{type(self)} col_values={col_values} col_list={col_list}")
             self._id = self.store_mgr.get_store().insert(self.store_mgr.class_entity(type(self)), col_list, col_values)
         else:
-            self.store_mgr.get_store().update(self.store_mgr.get_store().class_entity(type(self)), self.id, col_list, col_values)
+            self.store_mgr.get_store().update(self.store_mgr.class_entity(type(self)), self.id, col_list, col_values)
         return self._id
 
 

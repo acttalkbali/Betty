@@ -4,6 +4,7 @@ from .storable import Storable
 #from SqlStore import SqlStore
 
 class Team(Storable):
+    _table_ = "team"
 
     def __init__(self, store, name:str|None=None, id:int|None=None):
         super().__init__(store)

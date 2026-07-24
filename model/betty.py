@@ -1,3 +1,4 @@
+from model.storable import DbFieldType, Field
 from .bet import Bet
 from .bettable import Bettable
 from .bettor import Bettor
@@ -301,11 +302,14 @@ class Betty:
         :param entity: a model entity
         :return: the id of the newly stored entity or else None
         """
+        return entity.save()
         pycls = type(entity)
         attr_list = map(lambda x: x[0], Betty().attribute_mappings(pycls))
         attr_values = []
         for mapping in Betty().attribute_mappings(pycls):
             entity_attr = getattr(entity, mapping[1])
+            if isinstance(entity_attr, Field):
+                value = entity_attr.dbfy_value()
             if callable(entity_attr):
                 # attribute available in the entity as a callable object, typically a bound method
                 value = entity_attr()
@@ -313,7 +317,7 @@ class Betty:
                 # attribute available in the entity as a regular object attribute
                 value = entity_attr
             attr_values.append("NULL" if value is None else f"'{str(value)}'")
-        if entity.id is None:
+        if entity.id is None or entity.id._value is None:
             entity.id = Betty().get_store().insert(Betty().class_entity(type(entity)), attr_list, attr_values)
         else:
             Betty().get_store().update(Betty().class_entity(type(entity)), entity.id, attr_list, attr_values)

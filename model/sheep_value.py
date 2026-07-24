@@ -5,6 +5,7 @@ from .team import Team
 #from SqlStore import SqlStore
 
 class SheepValue(Storable):
+    _table_ = "sheep_value"
 
     def __init__(self, store, team:Team|int, tournament:Tournament|int, sheep_value:int):
         super().__init__(store)

@@ -3,6 +3,7 @@ from model.tournament import Tournament
 
 
 class Phase(Storable):
+    _table_ = "phase"
     """
     id SERIAL PRIMARY KEY,
     {cls.references_by_id(Tournament)},
@@ -39,5 +40,5 @@ class Phase(Storable):
 
     def save(self):
         self.store_mgr.save(self)
-        if self._tournament:
-            self.store_mgr.save(self)
+        #if self._tournament._value:
+        #    self.store_mgr.save(self)

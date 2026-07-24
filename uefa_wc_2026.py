@@ -6,11 +6,12 @@ from model.bettable import Bettable
 from datetime import datetime
 
 def setup(betty):
+
     wc2026 = Tournament(betty,
                         name="FIFA World Cup 2026",
                         start_date=datetime.fromisoformat('2026-06-11 21:00:00+00'),
                         end_date=datetime.fromisoformat('2026-07-19 21:00:00+00'))
-    phases = [
+    phases:list[dict] = [
                 {
                     'name' : '1st round',
                     'scoring': '630',

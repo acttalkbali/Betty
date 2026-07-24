@@ -5,7 +5,7 @@ from .tournament import Tournament
 from datetime import datetime
 
 class Ranking(Storable):
-
+    _table_ = "ranking"
     def __init__(self, store, tournament: Tournament, bettor: Bettor, rank:int, score:int|None=None):
         super().__init__(store)
         self._rank = rank

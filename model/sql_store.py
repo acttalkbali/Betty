@@ -115,7 +115,7 @@ class SqlStore:
         return id
 
     def update(self, table:str, id, attr_list:list[str], attr_values:list[str]) -> int|None:
-        condition = f"id={id}"
+        condition = f"id={id}" if isinstance(id, int) else f"id={id.dbfy_value()}"
         attr_value_pairs = ', '.join([f"{attr}={value}" for attr, value in zip(attr_list, attr_values)])
         cmd = f"UPDATE {table} SET {attr_value_pairs} WHERE {condition} RETURNING id;"
         if self._conn.closed:

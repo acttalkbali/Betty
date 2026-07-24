@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from .storable import Storable
+from .storable import Storable, DbDate, Field, UniqueField, DbText, StorableMeta
 
 #from SqlStore import SqlStore
 
@@ -7,15 +7,16 @@ TOURNAMENT_STATE_OPEN = "OPEN"
 TOURNAMENT_STATE_RUNNING = "RUNNING"
 TOURNAMENT_STATE_CLOSED = "CLOSED"
 
-class Tournament(Storable):
+class Tournament(Storable, metaclass=StorableMeta):
+    _table_ = "tournament"
 
     def __init__(self, store, id=None, name:str=None, start_date:datetime = None, end_date:datetime = None, sheep_credit:int=500):
         super().__init__(store, id)
-        self._name = name
-        self._start_dt = start_date
-        self._end_dt = end_date #max(self._start_dt, end_date or datetime.now() + timedelta(days=365))
-        self._state = TOURNAMENT_STATE_OPEN if (start_date is None or start_date > datetime.now(timezone.utc)) else TOURNAMENT_STATE_RUNNING
-        self._sheep_credit = sheep_credit
+        self._name = UniqueField(name, DbText)
+        self._start_dt = Field(start_date, DbDate)
+        self._end_dt = Field(end_date, DbDate) #max(self._start_dt, end_date or datetime.now() + timedelta(days=365))
+        self._state = Field(TOURNAMENT_STATE_OPEN if (start_date is None or start_date > datetime.now(timezone.utc)) else TOURNAMENT_STATE_RUNNING, DbText)
+        self._sheep_credit = Field(sheep_credit)
 
     def __str__(self):
         return f'Tournament {self._name} starting on {self._start_dt}, ending on {self._end_dt}'
@@ -63,10 +64,8 @@ class Tournament(Storable):
             self._end_dt = value
 
     def load(self, condition = ''):
-        self.store_mgr.run_query(f"SELECT * FROM {Betty().class_entity[type(self)]}" + (f" WHERE {condition}" if condition else '') + ";")
+        self.store_mgr.run_query(f"SELECT * FROM {self._table_}" + (f" WHERE {condition}" if condition else '') + ";")
 
-    def save(self):
-        self.store_mgr.save(self)
 
 if __name__ == '__main__':
     from .betty import Betty

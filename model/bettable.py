@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from importlib.metadata import requires
 
-from .storable import Storable, Referenceable, Field, DbDate, DbText
+from .storable import Storable, Referenceable, Field, DbDate, DbText, UniqueConstraint
 from .phase import Phase
 from .team import Team
 
@@ -10,6 +10,8 @@ BETTABLE_STATE_RUNNING = "RUNNING"
 BETTABLE_STATE_CLOSED = "CLOSED"
 
 class Bettable(Storable):
+    _table_ = "bettable"
+
     """
     id SERIAL PRIMARY KEY,
     {cls.references_by_id(Phase)},
@@ -28,6 +30,7 @@ class Bettable(Storable):
         self._start_dt = Field(start_dt, DbDate, required=False) # Todo required=True?
         self._state = Field(BETTABLE_STATE_OPEN if start_dt > datetime.now(timezone.utc) else BETTABLE_STATE_RUNNING, DbText, dflt=BETTABLE_STATE_OPEN)
         self._outcome = Field(outcome, DbText, required=False)
+        self._constraint = UniqueConstraint(["_phase", "_team_a", "_team_b"])
 
     # built_ins -----------------------------------------------------------------
 

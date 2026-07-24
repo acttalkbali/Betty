@@ -3,6 +3,7 @@ from .sheep_value import SheepValue
 from .storable import Storable
 
 class SheepLivestock(Storable):
+    _table_ = "sheep_livestock"
     """
     Dans le sens où il faut participer à un tournoi pour acheter des moutons, le livestock pourrait être lié à la
     participation mais cela allonge l'accès au Bettor
