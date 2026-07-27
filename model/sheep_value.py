@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from .storable import Storable
+from .storable import Storable, Referenceable, Field
 from .tournament import Tournament
 from .team import Team
 #from SqlStore import SqlStore
@@ -9,11 +9,11 @@ class SheepValue(Storable):
 
     def __init__(self, store, team:Team|int, tournament:Tournament|int, sheep_value:int):
         super().__init__(store)
-        self._team = team
+        self._team = Referenceable(team)
         #self._team_id = team.id
-        self._tournament = tournament
+        self._tournament = Referenceable(tournament)
         #self._tournament_id = tournament.id
-        self._sheep_value = sheep_value
+        self._sheep_value = Field(sheep_value)
 
     def __str__(self):
         return f'{self._team.name} {self.tournament.name} Sheep Value: {self._sheep_value}'
@@ -42,9 +42,6 @@ class SheepValue(Storable):
 
     def load(self, condition = ''):
         self.store_mgr.load(self)
-
-    def save(self):
-        self.store_mgr.save(self)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from .storable import Storable
+from .storable import Storable, Referenceable
 from .betty import *
 
 #from SqlStore import SqlStore
@@ -12,10 +12,10 @@ class Participation(Storable):
 
     def __init__(self, store, bettor:Bettor, tournament:Tournament, score=0, credit=0, id=None):
         super().__init__(store, id)
-        self._bettor = bettor
-        self._tournament = tournament
-        self._score = score
-        self._credit = credit or tournament.sheep_credit
+        self._bettor = Referenceable(bettor)
+        self._tournament = Referenceable(tournament)
+        self._score = Field(score)
+        self._credit = Field(credit or tournament.sheep_credit)
 
     def __str__(self):
         return f'Participation {self._bettor} {self._tournament}'
@@ -48,7 +48,5 @@ class Participation(Storable):
             print(f"Filled {self}")
         self.store_mgr.run_query(f"SELECT * FROM {Betty().class_entity[type(self)]}" + (f" WHERE {condition}" if condition else '') + ";")
 
-    def save(self):
-        return self.store_mgr.save(self)
 
 

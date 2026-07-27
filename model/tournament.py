@@ -7,7 +7,7 @@ TOURNAMENT_STATE_OPEN = "OPEN"
 TOURNAMENT_STATE_RUNNING = "RUNNING"
 TOURNAMENT_STATE_CLOSED = "CLOSED"
 
-class Tournament(Storable, metaclass=StorableMeta):
+class Tournament(Storable):
     _table_ = "tournament"
 
     def __init__(self, store, id=None, name:str=None, start_date:datetime = None, end_date:datetime = None, sheep_credit:int=500):

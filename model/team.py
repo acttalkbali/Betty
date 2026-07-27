@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from .storable import Storable
+from .storable import Storable, Field, DbText, UniqueField
+
 
 #from SqlStore import SqlStore
 
@@ -7,9 +8,8 @@ class Team(Storable):
     _table_ = "team"
 
     def __init__(self, store, name:str|None=None, id:int|None=None):
-        super().__init__(store)
-        self._id = id
-        self._name = name or "unnamed"+str(self.id)
+        super().__init__(store, id)
+        self._name = UniqueField(name or "unnamed"+str(self.id), DbText)
         #self._tournament = tournament
 
     def __str__(self):
@@ -46,11 +46,6 @@ class Team(Storable):
 
     def load_by_id(self):
         raise NotImplementedError
-
-    def save(self):
-        self.store_mgr.save(self)
-        #if self._tournament and self._sheep_value:
-        #    self._sheep_value.save()
 
 if __name__ == '__main__':
     from .betty import Betty

@@ -10,10 +10,10 @@ class SheepLivestock(Storable):
     """
     def __init__(self, store, sheep_value: SheepValue | int, bettor: Bettor | int, quantity: int):
         super().__init__(store)
-        self._sheep_value = sheep_value
-        self._bettor = bettor
-        self._sheep_value = sheep_value
-        self._quantity = quantity
+        self._sheep_value = Field(sheep_value)
+        self._bettor = Referenceable(bettor)
+        self._sheep_value = Field(sheep_value)
+        self._quantity = Field(quantity)
 
     def __str__(self):
         return f"{self._bettor}'s  {self._sheep_value.team_name if isinstance(self._sheep_value, SheepValue) else self._sheep_value} Sheep Quantity: {self._quantity}"
@@ -45,6 +45,3 @@ class SheepLivestock(Storable):
             self._bettor = self._bettor or result[0]['bettor_id']
             self._sheep_value = self._sheep_value or result[0]['sheep_value_id']
         return result
-
-    def save(self):
-        self.store_mgr.save(self)

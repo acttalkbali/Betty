@@ -37,8 +37,3 @@ class Phase(Storable):
 
     def load(self, condition = ''):
         self.store_mgr.load(self)
-
-    def save(self):
-        self.store_mgr.save(self)
-        #if self._tournament._value:
-        #    self.store_mgr.save(self)

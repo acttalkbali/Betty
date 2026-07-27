@@ -1,4 +1,4 @@
-from .storable import Storable
+from .storable import Storable, Referenceable, Field
 from .bettor import Bettor
 from .tournament import Tournament
 
@@ -8,10 +8,10 @@ class Ranking(Storable):
     _table_ = "ranking"
     def __init__(self, store, tournament: Tournament, bettor: Bettor, rank:int, score:int|None=None):
         super().__init__(store)
-        self._rank = rank
-        self._bettor = bettor
-        self._tournament = tournament
-        self._score = score
+        self._rank = Field(rank)
+        self._bettor = Referenceable(bettor)
+        self._tournament = Referenceable(tournament)
+        self._score = Field(score)
 
     # built_ins -----------------------------------------------------------------
 
@@ -36,5 +36,3 @@ class Ranking(Storable):
     def load(self, condition=''):
         return self.store_mgr.load(self, f"bettor_id={self.bettor_id} AND tournament_id={self.tournament_id}" + (f" AND {condition}" if condition else ''))
 
-    def save(self):
-        self.store_mgr.save(self)

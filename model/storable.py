@@ -6,7 +6,7 @@ from importlib.metadata import requires
 
 def dbfy(name : str):
     if name:
-        name.strip('_')
+        name = name.strip('_')
         pattern = re.compile(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
         name = pattern.sub('_', name).lower()
         return name
@@ -46,7 +46,10 @@ class Field:
         return self._name
 
     def dbfy_name(self, base_name):
-        return base_name.strip('_') if base_name else None
+        return dbfy(base_name)
+
+    def __str__(self) -> str:
+        return f"{type(self)} {self._name}:{self._type}={self._value}"
 
 class UniqueField(Field):
     def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
@@ -69,6 +72,7 @@ class Referenceable(Field):
 
 class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
+        print(f"Adding field attributes to class {name}")
         # Define class attributes
         attrs['_class_initialized'] = False
         attrs['_uniqueFields'] = None
@@ -79,7 +83,7 @@ class StorableMeta(ABCMeta):
             attrs['_table_'] = dbfy(name)
         return super().__new__(mcs, name, bases, attrs)
 
-class Storable(ABC):
+class Storable(ABC, metaclass=StorableMeta):
 
     # class attributes
     #_class_initialized = False
@@ -108,7 +112,7 @@ class Storable(ABC):
                     if isinstance(v, Field):
                         instance_class._fields.append(k)
                         v._name = v.dbfy_name(k) or k
-            print(f"{type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
+            print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
     def __init__(self, store_mgr, id=None):
@@ -121,10 +125,10 @@ class Storable(ABC):
 
     @property
     def id(self):
-        return self._id
+        return self._id._value
     @id.setter
     def id(self, value:int|None):
-        self._id = value
+        self._id._value = value
 
     @property
     def store(self):
@@ -165,7 +169,7 @@ class Storable(ABC):
                 field = self.__getattribute__(field_name)
                 field._value = result[0].get(field_name, result[0].get(dbfy(field_name)))
 
-    def save(self):
+    def save(self) -> int:
         if not self._class_initialized:
             Storable.init_class(self)
 
@@ -181,16 +185,16 @@ class Storable(ABC):
                         field._value = field._dflt
 
             if field._value is not None:
-                col_list.append(field._name or dbfy(attr_name))
+                col_list.append(field._name or field.dbfy_name(attr_name))
                 col_values.append(field.dbfy_value())
 
         # If _id is None, this is considered an insertion, else an update
         if self._id is None or self._id._value is None:
             print(f"{type(self)} col_values={col_values} col_list={col_list}")
-            self._id = self.store_mgr.get_store().insert(self.store_mgr.class_entity(type(self)), col_list, col_values)
+            self._id._value = self.store_mgr.get_store().insert(self.store_mgr.class_entity(type(self)), col_list, col_values)
         else:
             self.store_mgr.get_store().update(self.store_mgr.class_entity(type(self)), self.id, col_list, col_values)
-        return self._id
+        return self.id
 
 
 

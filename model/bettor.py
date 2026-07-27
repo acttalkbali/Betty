@@ -6,7 +6,7 @@ class Bettor(Storable):
 
     def __init__(self, store, name, pwd=None, email=None, nickname=None, id=None):
         super().__init__(store, id)
-        self._name = Field(name, DbText)
+        self._name = UniqueField(name, DbText)
         self._nickname = UniqueField(nickname, DbText)
         self._email = UniqueField(email, DbText)
         self._pwd = Field(pwd, DbText)
@@ -39,8 +39,5 @@ class Bettor(Storable):
             print(f"Filled {self}")
         """
 
-    def save(self):
-        super().save()
-        #self.store_mgr.save(self)
 
 
