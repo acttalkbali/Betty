@@ -9,7 +9,7 @@ class Team(Storable):
 
     def __init__(self, store, name:str|None=None, id:int|None=None):
         super().__init__(store, id)
-        self._name = UniqueField(name or "unnamed"+str(self.id), DbText)
+        self._name = UniqueField(name, DbText)
         #self._tournament = tournament
 
     def __str__(self):
@@ -31,6 +31,8 @@ class Team(Storable):
 
     def load(self, condition:str = ''):
         # todo use the mini model mapping to hide the attribute names
+        results = super().load(condition)
+        return results
         if self.id:
             condition += self.store.wrap_condition('id', '=', self.id)
         elif self._name:

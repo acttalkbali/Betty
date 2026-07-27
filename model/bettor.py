@@ -4,8 +4,8 @@ from .storable import Storable, Field, DbText, UniqueField
 class Bettor(Storable):
     _table_ = "bettor"
 
-    def __init__(self, store, name, pwd=None, email=None, nickname=None, id=None):
-        super().__init__(store, id)
+    def __init__(self, store, name, pwd=None, email=None, nickname=None, id:int|None=None):
+        super().__init__(store)
         self._name = UniqueField(name, DbText)
         self._nickname = UniqueField(nickname, DbText)
         self._email = UniqueField(email, DbText)
@@ -16,10 +16,6 @@ class Bettor(Storable):
 
     def __repr__(self):
         return super().__repr__()
-
-    #@classmethod
-    #def load(cls, condition = ''):
-    #    self.store_mgr.load(cls, condition)
 
     def load(self, condition = ''):
         return super().load(condition)

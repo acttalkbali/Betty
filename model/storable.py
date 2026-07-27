@@ -45,8 +45,8 @@ class Field:
     def col_name(self):
         return self._name
 
-    def dbfy_name(self, base_name):
-        return dbfy(base_name)
+    def dbfy_name(self, attr_name=None):
+        return dbfy(self._name or attr_name)
 
     def __str__(self) -> str:
         return f"{type(self)} {self._name}:{self._type}={self._value}"
@@ -61,13 +61,30 @@ class UniqueConstraint:
 
 class Referenceable(Field):
     def __init__(self, referred: Storable, db_type=DbInt, name=None, required=True, dflt=None):
-        super().__init__(referred.id if isinstance(referred, Storable) else referred, db_type, name, required, dflt)
-        self._referred = referred
-        self.id = referred.id
-        self.store_mgr = referred.store_mgr
+        if isinstance(referred, Storable):
+            super().__init__(referred.id, db_type, name, required, dflt)
+            self._referred = referred
+            self._id = referred.id
+            self.store_mgr = referred.store_mgr
+        else:
+            super().__init__( referred, db_type, name, required, dflt)
+            self._referred = None
+            self._id = referred
+            self.store_mgr = None
 
-    def dbfy_name(self, base_name):
-        return f"{super().dbfy_name(base_name)}_id"
+    @property
+    def id(self):
+        if self._referred:
+            return self._referred.id
+        else:
+            return self._id
+
+    @id.setter
+    def id(self, value:int|None):
+        self._id._value = value
+
+    def dbfy_name(self, attr_name=None):
+        return f"{super().dbfy_name(attr_name)}_id"
 
 
 class StorableMeta(ABCMeta):
@@ -117,11 +134,8 @@ class Storable(ABC, metaclass=StorableMeta):
 
     def __init__(self, store_mgr, id=None):
         super().__init__()
-        self._id = UniqueField(id or None)
         self.store_mgr = store_mgr
-        if self._uniqueFields is None:
-            self._uniqueFields = []
-        self._uniqueConstraints = []
+        self._id = UniqueField(id, required=False)
 
     @property
     def id(self):
@@ -144,18 +158,19 @@ class Storable(ABC, metaclass=StorableMeta):
 
         conditions = []
         # Is a unique key filled in? If yes use it
-        for uniqueFieldName, uniqueFieldValue in self._uniqueFields:
-            if v:=self.__getattribute__(uniqueFieldName) is not None:
-                conditions.append(self.store.wrap_condition(uniqueFieldValue.name or dbfy(uniqueFieldName), '=', v._value))
+        for uniqueFieldName in self._uniqueFields:
+            if (field:=self.__getattribute__(uniqueFieldName)) is not None:
+                if field._value is not None:
+                    conditions.append(self.store.wrap_condition(field.col_name() or dbfy(uniqueFieldName), '=', field._value))
 
         if not conditions:
             for uniqueConstraint in self._uniqueConstraints:
-                for field_name in uniqueConstraint._field_names:
-                    if v:=self.__getattribute__(field_name) is not None:
+                for field_name in self.__getattribute__(uniqueConstraint)._field_names:
+                    if (field:=self.__getattribute__(field_name)) is not None:
                         try: # assume field instance
-                            conditions.append(self.store.wrap_condition(field_name.name or dbfy(field_name), '=', v._value))
-                        except:
-                            conditions.append(self.store.wrap_condition(field_name or dbfy(field_name), '=', v))
+                            conditions.append(self.store.wrap_condition(field.dbfy_name(), '=', field._value))
+                        except AttributeError:
+                            conditions.append(self.store.wrap_condition(field_name or dbfy(field_name), '=', field))
                     else:
                         conditions = []
                         break
@@ -168,6 +183,7 @@ class Storable(ABC, metaclass=StorableMeta):
             for field_name in self._fields:
                 field = self.__getattribute__(field_name)
                 field._value = result[0].get(field_name, result[0].get(dbfy(field_name)))
+        return result
 
     def save(self) -> int:
         if not self._class_initialized:

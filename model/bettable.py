@@ -35,7 +35,7 @@ class Bettable(Storable):
     # built_ins -----------------------------------------------------------------
 
     def __str__(self):
-        return f'Bettable {self._team_a.name} - {self._team_b.name} [{self._start_dt}]'
+        return f'Bettable {self._a_team} - {self._b_team} [{self._start_dt}]'
 
     def __repr__(self):
         return super().__repr__()
@@ -48,14 +48,14 @@ class Bettable(Storable):
 
     @property
     def a_team_id(self):
-        return self._team_a.id
+        return self._a_team.id
 
     @property
     def b_team_id(self):
-        return self._team_b.id
+        return self._b_team.id
 
     # storable -----------------------------------------------------------------
 
     def load(self, condition=''):
-        return self.store_mgr.load(self, f"phase_id={self.phase_id} AND team_a_id={self.team_a_id} AND team_b_id={self.team_b_id}" + (f" AND {condition}" if condition else ''))
+        return self.store_mgr.load(self, f"phase_id={self.phase_id} AND team_a_id={self.a_team_id} AND team_b_id={self.b_team_id}" + (f" AND {condition}" if condition else ''))
 

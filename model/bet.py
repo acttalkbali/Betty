@@ -1,4 +1,4 @@
-from .storable import Storable, UniqueField, Field, DbText, DbFloat, Referenceable
+from .storable import Storable, UniqueField, Field, DbText, DbFloat, Referenceable, UniqueConstraint
 from .bettor import Bettor
 from .bettable import Bettable
 
@@ -9,17 +9,17 @@ class Bet(Storable):
 
     def __init__(self, store, bettor: Bettor, bettable: Bettable, prediction: int|None=None, score:int|None=None):
         super().__init__(store)
-        self._id = UniqueField(self._id)
         self._name = f"{bettor}:{bettable}={prediction}"
         self._bettor = Referenceable(bettor)
         self._bettable = Referenceable(bettable)
         self._prediction = Field(prediction, DbText) # eg. 10=Team_a victory, 01=Team b Victory, 00=Nul, 11=Team_a or Team_b victory, 10=Team_a or nul, 02=Team_b or nul
         self._score = Field(score, DbFloat, required=False)
+        self._bettor_bettable_unicity = UniqueConstraint(['_bettor', '_bettable'])
 
     # built_ins -----------------------------------------------------------------
 
     def __str__(self):
-        return f'Bettable {self._team_a.name} - {self._team_b.name} [{start}]'
+        return f"Bet  {self._name}"
 
     def __repr__(self):
         return super().__repr__()
@@ -36,7 +36,7 @@ class Bet(Storable):
 
     # storable -----------------------------------------------------------------
 
-    def load(self, condition=''):
+    """def load(self, condition=''):
         conditions = []
         if self.id:
             conditions.append(self.store.wrap_condition('id', '=', self.id))
@@ -50,7 +50,7 @@ class Bet(Storable):
             self._prediction = result[0]['prediction']
             self._score = result[0]['score']
             self._id = result[0]['id']
-        return result
+        return result"""
 
     def save(self):
         if self._bettable._start_dt > datetime.now().replace(tzinfo=timezone.utc):

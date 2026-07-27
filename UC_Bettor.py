@@ -133,7 +133,7 @@ def login(bettor_name, bettor_pwd) -> Bettor|None:
     result = bettor.load()
     if len(result)==1:
         # bettor filled-in successfully
-        if bettor._pwd != bettor_pwd:
+        if bettor._pwd._value != bettor_pwd:
             "Incorrect password. Login denied"
             UiBettorContext().logged_in = None
             return None
@@ -167,7 +167,7 @@ def tournament_registration(bettor)->None:
     """
     if  UiBettorContext().logged_in:
         # Select the existing future or ongoing tournaments to which the bettor hasn't yet registered to
-        attr_dicts = Betty().query(f"SELECT tr.id,tr.name,tr.start_dt,tr.end_dt,tr.sheep_credit,p.bettor_id FROM tournament tr RIGHT JOIN participation p ON p.tournament_id=tr.id WHERE p.tournament_id IS NULL AND end_dt > NOW() ORDER BY tr.start_dt;") # AND p.bettor_id={UiBettorContext().logged_in.id}
+        attr_dicts = Betty().query(f"SELECT tr.id,tr.name,tr.start_dt,tr.end_dt,tr.sheep_credit,p.bettor_id FROM tournament tr FULL JOIN participation p ON p.tournament_id=tr.id WHERE p.tournament_id IS NULL AND end_dt > NOW() ORDER BY tr.start_dt;") # AND p.bettor_id={UiBettorContext().logged_in.id}
         # filter out already registered tournaments
         attr_dicts = list(filter(lambda x: x['bettor_id'] != UiBettorContext().logged_in.id, attr_dicts))
         if len(attr_dicts)==0:
@@ -277,10 +277,10 @@ def bet(bettor):
                 team_b.load()
                 bettable = Bettable(Betty(), attr_dict['phase_id'], team_a, team_b, attr_dict['start_dt'], id=attr_dict['id'])
                 bet = Bet(Betty(), bettor, bettable)
-                bet.load()
+                result = bet.load() # load the bet if it already exists
                 choices.append((bettable,bet))
                 #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")
-            selection = input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._team_a} - {x[0]._team_b}" + (f" <<{x[1]._prediction}>>" if x[1]._prediction else ''))
+            selection = input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name.value} - {x[0]._b_team._referred._name.value}" + (f" <<{x[1]._prediction._value}>>" if x[1]._prediction._value else ''))
 
             if selection >= 0:
                 prediction = input(f"{choices[selection][0]} result prediction (1=A, 2=B, 12=A or B, 10=A or draw, 20=B or draw): ")
