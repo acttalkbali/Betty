@@ -49,6 +49,9 @@ class Field:
         return dbfy(self._name or attr_name)
 
     def __str__(self) -> str:
+        return f"{self._value}"
+
+    def __repr__(self) -> str:
         return f"{type(self)} {self._name}:{self._type}={self._value}"
 
 class UniqueField(Field):
@@ -86,6 +89,8 @@ class Referenceable(Field):
     def dbfy_name(self, attr_name=None):
         return f"{super().dbfy_name(attr_name)}_id"
 
+    def __str__(self):
+        return str(self._referred if self._referred else self.id)
 
 class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
@@ -120,7 +125,7 @@ class Storable(ABC, metaclass=StorableMeta):
                 for k, v in instance.__dict__.items():
                     if isinstance(v, UniqueField):
                         instance_class._uniqueFields.append(k)
-                        v._name = v.dbfy_name(k) or k
+
             if instance_class._uniqueConstraints is None:
                 instance_class._uniqueConstraints = {k for k,v in instance.__dict__.items() if isinstance(v, UniqueConstraint)}
             if instance_class._fields is None:
@@ -128,7 +133,7 @@ class Storable(ABC, metaclass=StorableMeta):
                 for k, v in instance.__dict__.items():
                     if isinstance(v, Field):
                         instance_class._fields.append(k)
-                        v._name = v.dbfy_name(k) or k
+
             print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
@@ -168,7 +173,7 @@ class Storable(ABC, metaclass=StorableMeta):
                 for field_name in self.__getattribute__(uniqueConstraint)._field_names:
                     if (field:=self.__getattribute__(field_name)) is not None:
                         try: # assume field instance
-                            conditions.append(self.store.wrap_condition(field.dbfy_name(), '=', field._value))
+                            conditions.append(self.store.wrap_condition(field._name or field.dbfy_name(field_name), '=', field._value))
                         except AttributeError:
                             conditions.append(self.store.wrap_condition(field_name or dbfy(field_name), '=', field))
                     else:

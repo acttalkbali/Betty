@@ -1,6 +1,7 @@
 from .bettor import Bettor
 from .sheep_value import SheepValue
-from .storable import Storable
+from .storable import Storable, Referenceable, Field
+
 
 class SheepLivestock(Storable):
     _table_ = "sheep_livestock"
@@ -8,11 +9,10 @@ class SheepLivestock(Storable):
     Dans le sens où il faut participer à un tournoi pour acheter des moutons, le livestock pourrait être lié à la
     participation mais cela allonge l'accès au Bettor
     """
-    def __init__(self, store, sheep_value: SheepValue | int, bettor: Bettor | int, quantity: int):
+    def __init__(self, store, sheep_value: SheepValue|int=None, bettor: Bettor|int=None, quantity: int=None, id:int|None=None):
         super().__init__(store)
-        self._sheep_value = Field(sheep_value)
+        self._sheep_value = Referenceable(sheep_value)
         self._bettor = Referenceable(bettor)
-        self._sheep_value = Field(sheep_value)
         self._quantity = Field(quantity)
 
     def __str__(self):
@@ -30,6 +30,7 @@ class SheepLivestock(Storable):
         return self._sheep_value._id if isinstance(self._sheep_value, SheepValue) else 0
 
     def load(self, condition = ''):
+        return super().load(condition)
         conditions = []
         if self.id:
             conditions.append(self.store.wrap_condition('id', '=', self.id))

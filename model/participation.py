@@ -10,12 +10,12 @@ TOURNAMENT_STATE_CLOSED = "CLOSED"
 
 class Participation(Storable):
 
-    def __init__(self, store, bettor:Bettor, tournament:Tournament, score=0, credit=0, id=None):
+    def __init__(self, store, bettor:Bettor=None, tournament:Tournament=None, score=0, credit=0, id=None):
         super().__init__(store, id)
         self._bettor = Referenceable(bettor)
         self._tournament = Referenceable(tournament)
         self._score = Field(score)
-        self._credit = Field(credit or tournament.sheep_credit)
+        self._credit = Field(credit or tournament.sheep_credit if tournament else None)
 
     def __str__(self):
         return f'Participation {self._bettor} {self._tournament}'
@@ -32,6 +32,7 @@ class Participation(Storable):
         return self._tournament.id
 
     def load(self, condition = ''):
+        return super().load(condition)
         if self.id:
             condition += self.store.wrap_condition('id', '=', self.id)
         elif self._bettor and self._tournament:

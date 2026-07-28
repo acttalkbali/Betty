@@ -1,4 +1,7 @@
 from model.betty import Betty, Tournament, Participation, Team, Bet, Bettable, Bettor
+from model.sheep_livestock import SheepLivestock
+from model.sheep_value import SheepValue
+
 
 #from dotenv import load_dotenv
 
@@ -89,8 +92,9 @@ class UiBettorContext:
     def __init__(self):
         if not hasattr(self, "_initialised"):
             self.logged_in = None
-            self.tournament_selected_name = None
-            self.tournament_selected_id = None
+            self.tournament_selected_name = None # todo may be redundant with self.tournament_selected
+            self.tournament_selected_id = None # todo may be redundant with self.tournament_selected
+            self.tournament_selected = None
             self.participation_id = None
             self.credit = None
             self._initialised = True
@@ -204,6 +208,7 @@ def tournament_selection(bettor, states:list[str]=None) -> int:
                 selection = 0
             UiBettorContext().tournament_selected_name = attr_dicts[selection]['name']
             UiBettorContext().tournament_selected_id = attr_dicts[selection]['id']
+            UiBettorContext().tournament_selected = Tournament(Betty(), name=attr_dicts[selection]['name'], id=attr_dicts[selection]['id'])
             print(f"Selected tournament : {UiBettorContext().tournament_selected_id}")
             UiBettorContext().participation_id = attr_dicts[selection]['participation_id']
             UiBettorContext().credit = attr_dicts[selection]['credit']
@@ -227,18 +232,28 @@ def buy_sheeps(bettor):
         if not UiBettorContext().tournament_selected_id:
             info("Select a tournament first")
         else:
+            tournament_id = UiBettorContext().tournament_selected_id
             # Retrieve the teams value for this tournament
+
             attr_dicts = Betty().query(
-                f"SELECT t.id, t.name, s.sheep_value FROM team t, sheep_value s, tournament tr WHERE s.tournament_id=tr.id AND s.team_id = t.id  ORDER BY s.sheep_value DESC"
+                f"SELECT t.id, t.name, s.sheep_value, s.id FROM team t, sheep_value s WHERE s.tournament_id={tournament_id} AND s.team_id = t.id  ORDER BY s.sheep_value DESC"
             )
-            # Choose from the applicable OPEN bettables
+            # Choose from the applicable OPEN bettables??
+            # load the bettor sheep livestock
+            lvs_attr_dicts = Betty().query(
+                f"SELECT t.id, t.name, l.quantity, s.id FROM sheep_livestock l, sheep_value s, team t WHERE s.tournament_id={tournament_id} AND s.id = l.sheep_value_id AND l.bettor_id = {bettor.id} AND t.id = s.team_id ORDER BY s.sheep_value DESC"
+            )
+            livestock = {attr_dict['name']:attr_dict['quantity'] for attr_dict in lvs_attr_dicts }
             while True:
                 choices = []
-                credit = UiBettorContext().credit
-                print(f"Your credit: {credit}")
+                participation = Participation(Betty(), id=UiBettorContext().participation_id)
+                participation.load()
+                credit = participation._credit._value #UiBettorContext().credit
+                info(f"Your credit: {credit}")
                 for attr_dict in attr_dicts:
                     max_sheeps = credit // int(attr_dict['sheep_value'])
-                    choices.append(f"{attr_dict['name']} value {attr_dict['sheep_value']} (max {max_sheeps})")
+                    qty = livestock.get(attr_dict['name'], '')
+                    choices.append(f"{attr_dict['name']} value {attr_dict['sheep_value']} (max {max_sheeps})" + (f" <<--- {qty} --->>" if qty else ""))
 
                 selection = input_selection(choices, lambda x: x)
                 if selection >= 0:
@@ -246,6 +261,9 @@ def buy_sheeps(bettor):
                     n = input_int(f"Number of sheeps to buy (max {max_sheeps} according to your current credit ({credit})", 0, max_sheeps)
                     # Update credit accordingly
                     UiBettorContext().credit -= n * int(attr_dicts[selection]['sheep_value'])
+                    sheep_livestock = SheepLivestock(Betty(), sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=n)
+                    sheep_livestock.save()
+                    livestock[attr_dicts[selection]['name']] = n
                 else:
                     break
             if selection >= 0:
@@ -280,11 +298,11 @@ def bet(bettor):
                 result = bet.load() # load the bet if it already exists
                 choices.append((bettable,bet))
                 #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")
-            selection = input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name.value} - {x[0]._b_team._referred._name.value}" + (f" <<{x[1]._prediction._value}>>" if x[1]._prediction._value else ''))
+            selection = input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name._value} - {x[0]._b_team._referred._name._value}" + (f" << {x[1]._prediction._value} >>" if x[1]._prediction._value else ''))
 
             if selection >= 0:
                 prediction = input(f"{choices[selection][0]} result prediction (1=A, 2=B, 12=A or B, 10=A or draw, 20=B or draw): ")
-                choices[selection][1]._prediction = int(prediction)
+                choices[selection][1]._prediction._value = int(prediction)
                 choices[selection][1].save()
                 info("Your prediction has been registered")
         else:

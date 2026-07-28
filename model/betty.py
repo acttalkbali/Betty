@@ -209,7 +209,7 @@ class Betty:
               CREATE TABLE IF NOT EXISTS {cls.class_entity(SheepLivestock)} (
                    id SERIAL PRIMARY KEY,
                    {cls.references_by_id(Bettor)},
-                   {cls.references_by_id(Team)},
+                   {cls.references_by_id(SheepValue)},
                    quantity INT
                    );
               """,

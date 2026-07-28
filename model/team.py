@@ -13,7 +13,7 @@ class Team(Storable):
         #self._tournament = tournament
 
     def __str__(self):
-        return f'{self._name}'
+        return f'{self._name or self._id}'
 
     def __repr__(self):
         return super().__repr__()
@@ -33,21 +33,6 @@ class Team(Storable):
         # todo use the mini model mapping to hide the attribute names
         results = super().load(condition)
         return results
-        if self.id:
-            condition += self.store.wrap_condition('id', '=', self.id)
-        elif self._name:
-            condition += self.store.wrap_condition('name', '=', self._name)
-        results = self.store_mgr.load(type(self), condition)
-        if len(results)==1:
-            self._name = results[0]['name']
-            self._id = results[0]['id']
-            #self._tournament_id = results[0]['tournament_id']
-            #self._sheep_value = results[0]['sheep_value']
-            #print(f"Filled {self}")
-        return results
-
-    def load_by_id(self):
-        raise NotImplementedError
 
 if __name__ == '__main__':
     from .betty import Betty

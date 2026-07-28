@@ -19,21 +19,7 @@ class Bettor(Storable):
 
     def load(self, condition = ''):
         return super().load(condition)
-        """
-        # todo use the mini model mapping to hide the attribute names
-        if self.id:
-            condition += self.store.wrap_condition('id', '=', self.id)
-        elif self._name:
-            condition += self.store.wrap_condition('name', '=', self._name)
-        results = self.store_mgr.load(type(self), condition)
-        if len(results)==1:
-            self._name = results[0]['name']
-            self._id = results[0]['id']
-            self._email = results[0]['email']
-            self._pwd = results[0]['pwd']
-            self._nickname = results[0]['nickname']
-            print(f"Filled {self}")
-        """
+
 
 
 
