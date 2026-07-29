@@ -19,8 +19,8 @@ class SqlStore:
         "user": 'postgres',
         "password": 'postgres'
     }
-    def debug(self,s):
-        if self._debug: print(s)
+    def debug(self, s, force:bool=False):
+        if force or self._debug: print(s)
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -75,7 +75,7 @@ class SqlStore:
                 self.debug(f"->{ret}")
                 return ret
 
-    def run_commands(self,commands: list[str]) -> bool:
+    def run_commands(self,commands: list[str], force_debug:bool=False) -> bool:
         success = True
         cmds = ' '.join(commands)
         commands = [cmds]
@@ -89,7 +89,7 @@ class SqlStore:
                     with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
                         cur.execute(command)
                     conn.commit()
-                self.debug(f"Succeeded: {command}")
+                self.debug(f"Succeeded: {command}", force_debug)
                 self.debug(f"Post commit run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
         except Exception as e:
             print(f"Failed: {command}: {e}")

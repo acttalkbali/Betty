@@ -1,77 +1,13 @@
 from model.betty import Betty, Tournament, Participation, Team, Bet, Bettable, Bettor
+from model.phase import Phase
+from model.ranking import Ranking
 from model.sheep_livestock import SheepLivestock
 from model.sheep_value import SheepValue
 
+import ui.console_ui as ui
 
 #from dotenv import load_dotenv
 
-#================== Basic UI console functions
-
-def int_or_none(s:str)->int|None:
-    """
-    converts and returns the supplied string to an int if it represents a valid number, or else return None
-    :param s:
-    :return:
-    """
-    try:
-        n = int(s)
-    except:
-        n = None
-    return n
-
-def input_int(prompt:str, n_min:int, n_max:int)->int:
-    """
-    Request an int in the range [n_min .. n_max]
-    :param prompt: The prompt to display
-    :param n_min:
-    :param n_max:
-    :return:
-    """
-    n = None
-    while n is None or n < n_min or n > n_max:
-        n = int_or_none(input(f"{prompt} [{n_min}-{n_max}] : "))
-    return n
-
-def input_selection(options:list[Any], fn: callable, exit_option=0)->int:
-    """
-    :param options:
-    :param fn: a 'key' function for the option, used for display
-    :return: -1 if exit menu selected else the index of the chosen selection
-    """
-    if exit_option == 0:
-        print("0: exit menu")
-
-    for i, option in enumerate(options):
-        print(f"{i+1}: {fn(option)}")
-
-    return input_int("Your selection", 0 if exit_option==0 else 1, len(options))-1 # -1 so it can be used as an index
-
-def error_msg(msg:str)->None:
-    """
-    Displays an error message
-    :param msg:
-    :return:
-    """
-    print(f"*** {msg} ***")
-
-def yes_no(question:str) -> bool:
-    """
-    Input a yes / no choice
-    :param question: the question for which the response is due
-    :return: True if answer is yes, False if the answer is no
-    """
-    answer = ''
-    while answer not in ['y', 'n']:
-        answer = input(f"{question} [y/n] : ").lower()
-    return answer == 'y'
-
-def info(msg:str)->None:
-    """
-    displays an informational message
-    :param msg:
-    :return:
-    """
-    print(msg)
 
 #================== UI context
 
@@ -143,12 +79,12 @@ def login(bettor_name, bettor_pwd) -> Bettor|None:
             return None
         else:
             UiBettorContext().logged_in = bettor
-            info("You are logged in")
+            ui.info("You are logged in")
             print(f"logged_in = {UiBettorContext().logged_in}")
             return bettor
     else:
-        error_msg(f"{bettor_name} is not registered")
-        if yes_no("Do you want to register? "):
+        ui.error_msg(f"{bettor_name} is not registered")
+        if ui.yes_no("Do you want to register? "):
             return register()
 
 def logout(bettor)->int:
@@ -171,13 +107,13 @@ def tournament_registration(bettor)->None:
     """
     if  UiBettorContext().logged_in:
         # Select the existing future or ongoing tournaments to which the bettor hasn't yet registered to
-        attr_dicts = Betty().query(f"SELECT tr.id,tr.name,tr.start_dt,tr.end_dt,tr.sheep_credit,p.bettor_id FROM tournament tr FULL JOIN participation p ON p.tournament_id=tr.id WHERE p.tournament_id IS NULL AND end_dt > NOW() ORDER BY tr.start_dt;") # AND p.bettor_id={UiBettorContext().logged_in.id}
+        attr_dicts = Betty().query(f"SELECT tr.id,tr.name,tr.start_dt,tr.end_dt,tr.sheep_credit,p.bettor_id FROM {Tournament._table_} tr FULL JOIN participation p ON p.tournament_id=tr.id WHERE p.tournament_id IS NULL AND end_dt > NOW() ORDER BY tr.start_dt;") # AND p.bettor_id={UiBettorContext().logged_in.id}
         # filter out already registered tournaments
         attr_dicts = list(filter(lambda x: x['bettor_id'] != UiBettorContext().logged_in.id, attr_dicts))
         if len(attr_dicts)==0:
-            info("Sorry, there are no other tournament(s) to register to")
+            ui.info("Sorry, there currently is no other tournament available for registration")
         else:
-            selection = input_selection(attr_dicts, lambda attr_dict: attr_dict['name'])
+            selection = ui.input_selection(attr_dicts, lambda attr_dict: attr_dict['name'])
             if selection >= 0:
                 tournament = Tournament(Betty(),id=attr_dicts[selection]['id'])
                 participation = Participation(Betty(), bettor, tournament, credit=attr_dicts[selection]['sheep_credit'])
@@ -197,14 +133,15 @@ def tournament_selection(bettor, states:list[str]=None) -> int:
     """
     if  UiBettorContext().logged_in:
         states_condition = f" AND tr.state IN ({str(states)[1:-1]})" if states else ''
-        attr_dicts = Betty().query(f"SELECT tr.id, tr.name, p.id AS participation_id, p.credit FROM participation p LEFT JOIN tournament tr ON p.tournament_id=tr.id WHERE p.bettor_id={bettor.id} {states_condition}")
+        attr_dicts = Betty().query(f"SELECT tr.id, tr.name, p.id AS participation_id, p.credit FROM participation p LEFT JOIN {Tournament._table_} tr ON p.tournament_id=tr.id WHERE p.bettor_id={bettor.id} {states_condition}")
         if len(attr_dicts)==0:
-            if yes_no("You have no ongoing tournament. Register to one?"):
+            if ui.yes_no("You have no ongoing tournament. Register to one?"):
                 tournament_registration(bettor)
         else:
             if len(attr_dicts) > 1:
-                selection = input_selection(attr_dicts, lambda attr_dict: attr_dict['name'])
+                selection = ui.input_selection(attr_dicts, lambda attr_dict: attr_dict['name'])
             else:
+                ui.info("You have no other ongoing tournament. Consider registering to one if you so wish.")
                 selection = 0
             UiBettorContext().tournament_selected_name = attr_dicts[selection]['name']
             UiBettorContext().tournament_selected_id = attr_dicts[selection]['id']
@@ -230,18 +167,18 @@ def buy_sheeps(bettor):
     """
     if  UiBettorContext().logged_in:
         if not UiBettorContext().tournament_selected_id:
-            info("Select a tournament first")
+            ui.info("Select a tournament first")
         else:
             tournament_id = UiBettorContext().tournament_selected_id
             # Retrieve the teams value for this tournament
 
             attr_dicts = Betty().query(
-                f"SELECT t.id, t.name, s.sheep_value, s.id FROM team t, sheep_value s WHERE s.tournament_id={tournament_id} AND s.team_id = t.id  ORDER BY s.sheep_value DESC"
+                f"SELECT t.id, t.name, s.sheep_value, s.id FROM {Team._table_} t, {SheepValue._table_} s WHERE s.tournament_id={tournament_id} AND s.team_id = t.id  ORDER BY s.sheep_value DESC"
             )
             # Choose from the applicable OPEN bettables??
             # load the bettor sheep livestock
             lvs_attr_dicts = Betty().query(
-                f"SELECT t.id, t.name, l.quantity, s.id FROM sheep_livestock l, sheep_value s, team t WHERE s.tournament_id={tournament_id} AND s.id = l.sheep_value_id AND l.bettor_id = {bettor.id} AND t.id = s.team_id ORDER BY s.sheep_value DESC"
+                f"SELECT t.id, t.name, l.quantity, s.id FROM {SheepLivestock._table_} l, {SheepValue._table_} s, team t WHERE s.tournament_id={tournament_id} AND s.id = l.sheep_value_id AND l.bettor_id = {bettor.id} AND t.id = s.team_id ORDER BY s.sheep_value DESC"
             )
             livestock = {attr_dict['name']:attr_dict['quantity'] for attr_dict in lvs_attr_dicts }
             while True:
@@ -249,28 +186,32 @@ def buy_sheeps(bettor):
                 participation = Participation(Betty(), id=UiBettorContext().participation_id)
                 participation.load()
                 credit = participation._credit._value #UiBettorContext().credit
-                info(f"Your credit: {credit}")
+                ui.info(f"Your credit: {credit}")
                 for attr_dict in attr_dicts:
                     max_sheeps = credit // int(attr_dict['sheep_value'])
                     qty = livestock.get(attr_dict['name'], '')
-                    choices.append(f"{attr_dict['name']} value {attr_dict['sheep_value']} (max {max_sheeps})" + (f" <<--- {qty} --->>" if qty else ""))
+                    team_sheep_value = f"{attr_dict['name']} value {attr_dict['sheep_value']} (max {max_sheeps}) "
+                    choices.append(team_sheep_value + ('.' * (45 - len(team_sheep_value))) + f" {qty if qty else '':2}")
 
-                selection = input_selection(choices, lambda x: x)
+                selection = ui.input_selection(choices, lambda x: x)
                 if selection >= 0:
                     max_sheeps = credit // int(attr_dicts[selection]['sheep_value'])
-                    n = input_int(f"Number of sheeps to buy (max {max_sheeps} according to your current credit ({credit})", 0, max_sheeps)
+                    n = ui.input_int(f"Number of sheeps to buy (max {max_sheeps} according to your current credit ({credit})", 0, max_sheeps)
                     # Update credit accordingly
                     UiBettorContext().credit -= n * int(attr_dicts[selection]['sheep_value'])
                     sheep_livestock = SheepLivestock(Betty(), sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=n)
                     sheep_livestock.save()
                     livestock[attr_dicts[selection]['name']] = n
+                    participation._credit._value = UiBettorContext().credit
+                    participation.save()
                 else:
                     break
-            if selection >= 0:
-                participation = Participation(Betty(), id=UiBettorContext().participation_id)
-                participation.load()
-                participation.credit = UiBettorContext().credit
-                participation.save()
+            # todo update credit along the livestock update
+            #if selection >= 0:
+            #    participation = Participation(Betty(), id=UiBettorContext().participation_id)
+            #    participation.load()
+            #    participation.credit = UiBettorContext().credit
+            #    participation.save()
 
 
 def bet(bettor):
@@ -283,7 +224,12 @@ def bet(bettor):
         if not UiBettorContext().tournament_selected_id:
             tournament_selection(bettor, ['OPEN', 'RUNNING'])
         if UiBettorContext().tournament_selected_id:
-            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, p.id AS phase_id FROM bettable b, phase p, tournament tr WHERE b.phase_id=p.id AND p.tournament_id = tr.id AND p.tournament_id={UiBettorContext().tournament_selected_id} AND b.start_dt > NOW() ORDER BY b.start_dt ASC")
+            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, p.id AS phase_id \
+                                         FROM {Bettable._table_} b, {Phase._table_} p, {Tournament._table_} tr \
+                                         WHERE b.phase_id=p.id AND p.tournament_id = tr.id \
+                                           AND p.tournament_id={UiBettorContext().tournament_selected_id} \
+                                           AND b.start_dt > NOW() \
+                                         ORDER BY b.start_dt ASC")
 
             # Choose from the applicable OPEN bettables
             choices = []
@@ -298,17 +244,27 @@ def bet(bettor):
                 result = bet.load() # load the bet if it already exists
                 choices.append((bettable,bet))
                 #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")
-            selection = input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name._value} - {x[0]._b_team._referred._name._value}" + (f" << {x[1]._prediction._value} >>" if x[1]._prediction._value else ''))
+            selection = ui.input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name._value} - {x[0]._b_team._referred._name._value}" + (f" << {x[1]._prediction._value} >>" if x[1]._prediction._value else ''))
 
             if selection >= 0:
                 prediction = input(f"{choices[selection][0]} result prediction (1=A, 2=B, 12=A or B, 10=A or draw, 20=B or draw): ")
                 choices[selection][1]._prediction._value = int(prediction)
                 choices[selection][1].save()
-                info("Your prediction has been registered")
+                ui.info("Your prediction has been registered")
         else:
-            error_msg("Yor must first select a tournament")
+            ui.error_msg("Yor must first select a tournament")
     else:
-        error_msg("You must be logged in to make a bet")
+        ui.error_msg("You must be logged in to make a bet")
+
+def calculate_score(prediction:int, outcome:int) -> int:
+    s_prediction = str(prediction)
+    s_outcome = str(outcome)
+    if prediction == outcome:
+        return 6
+    elif len(s_prediction)==2 and s_outcome in s_prediction:
+        return 3
+    else:
+        return 0
 
 def tournament_status():
     """
@@ -321,13 +277,28 @@ def tournament_status():
         if not UiBettorContext().tournament_selected_id:
             tournament_selection(bettor, ['OPEN', 'RUNNING'])
         if UiBettorContext().tournament_selected_id:
-            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, b.state FROM bettable b, phase p, tournament tr WHERE b.phase_id = p.id AND p.tournament_id=tr.id ORDER BY b.start_dt ASC")
+            # todo add bettable result if available
+            # todo add prediction if available
+            #"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, b.state, b.outcome, bt.prediction FROM bettable b JOIN phase p ON b.phase_id = p.id JOIN tournament tr ON p.tournament_id=tr.id FULL JOIN bet bt ON bt.bettable_id=b.id ORDER BY b.start_dt ASC"
+            attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, b.state, b.outcome, bt.prediction"
+                                       f" FROM {Bettable._table_} b"
+                                       f" JOIN {Phase._table_} p ON b.phase_id = p.id"
+                                       f" JOIN {Tournament._table_} tr ON p.tournament_id=tr.id"
+                                       f" FULL JOIN {Bet._table_} bt ON bt.bettable_id=b.id"
+                                       f" ORDER BY b.start_dt ASC")
             for attr_dict in attr_dicts:
                 team_a = Team(Betty(), id=attr_dict['a_team_id'])
                 team_b = Team(Betty(), id=attr_dict['b_team_id'])
                 team_a.load()
                 team_b.load()
-                print(f"{attr_dict['start_dt']} : {team_a} - {team_b}")
+                bettable_str = f"{attr_dict['start_dt']} : {team_a} - {team_b}"
+                if attr_dict['prediction'] or attr_dict['outcome']:
+                    bettable_str += " " + ('.' * (70 - len(bettable_str)))
+                    bettable_str += f"{attr_dict['prediction']:3}" if attr_dict['prediction'] else "   "
+                    bettable_str += f"{attr_dict['outcome']:3}" if attr_dict['outcome'] else "   "
+                    if attr_dict['prediction'] and attr_dict['outcome']:
+                        bettable_str += f" => {calculate_score(attr_dict['prediction'], attr_dict['outcome'])} points"
+                print(bettable_str)
 
 
 def show_ranking(bettor):
@@ -340,15 +311,20 @@ def show_ranking(bettor):
     if UiBettorContext().logged_in:
         if UiBettorContext().tournament_selected_id:
             attr_dicts = Betty().query(
-                f"SELECT r.id, b.nickname, r.tournament_id, r.score, r.rank FROM ranking r, tournament tr, bettor b WHERE r.tournament_id={UiBettorContext().tournament_selected_id} ORDER BY r.score DESC")
+                f"SELECT r.id, b.nickname, r.tournament_id, r.score, r.rank "
+                f"FROM {Ranking._table_} r, {Tournament._table_} tr, {Bettor._table_} b "
+                f"WHERE r.tournament_id={UiBettorContext().tournament_selected_id} "
+                f"ORDER BY r.score DESC")
 
-            print(f"========== {UiBettorContext().tournament_selected_name} RANKING ==========")
+            print(f"\n========== {UiBettorContext().tournament_selected_name} RANKING ==========")
             prv_score = ''
+            ranking = 1
             for rank,attr_dict in enumerate(attr_dicts):
-                if attr_dict['r.score'] != prv_score:
+                if attr_dict['score'] != prv_score:
+                    # Not an ex-aequo
                     prv_score = attr_dict['score']
                     ranking = rank + 1
-                print(f"{ranking:3} {attr_dict['b.nickname']:20} {attr_dict['score']:3} points")
+                print(f"{ranking:3} {attr_dict['nickname']:20} {attr_dict['score']:3} points")
 
 
 if __name__ == '__main__':
@@ -365,6 +341,6 @@ if __name__ == '__main__':
     selection = 0
     ret = None
     while ret != -1:
-        info(f'_____ Selected tournament: {UiBettorContext().tournament_selected_name}')
-        selection = input_selection(options, lambda x:x[0], exit_option=6)
+        ui.info(f'_____ Selected tournament: {UiBettorContext().tournament_selected_name}')
+        selection = ui.input_selection(options, lambda x:x[0], exit_option=6)
         ret = options[selection][1]() # execute the action

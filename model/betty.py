@@ -1,4 +1,4 @@
-from model.storable import DbFieldType, Field
+from model.storable import DbFieldType, Field, Storable, STORABLE_ENTITY_ATTR_NAME
 from .bet import Bet
 from .bettable import Bettable
 from .bettor import Bettor
@@ -37,7 +37,7 @@ class Betty:
 
     @classmethod
     def references_by_id(cls, pyclass, prefix='', nullable=False) -> str:
-        entity = cls.class_entity(pyclass)
+        entity = cls.class_entity(pyclass) # entity = Storable.entities.get(pyclass) #cls.class_entity(pyclass)
         if prefix:
             prefix += '_'
         return f"{prefix}{entity}_id {'INT' + (' NOT NULL' if not nullable else '')} REFERENCES {entity}(id)"
@@ -51,7 +51,7 @@ class Betty:
         attr = f"{prefix}{entity}_id"
         return attr, f"{attr}"
 
-    entities_mapping = {
+    '''entities_mapping = {
            Tournament: "tournament",
            Phase: "phase",
            Bettable: "bettable",
@@ -63,7 +63,7 @@ class Betty:
            SheepLivestock: "sheep_livestock",
            SheepValue: "sheep_value",
            Ranking: "ranking"
-           }
+           }'''
 
     @classmethod
     def class_entity(cls, pycls) -> str:
@@ -71,14 +71,14 @@ class Betty:
         :param pycls: The python model class
         :return: The store entity for the supplied python model class
         """
-        return cls.entities_mapping.get(pycls)
+        return pycls._table_ #STORABLE_ENTITY_ATTR_NAME
+        return cls.entities_mapping.get(pycls) # todo remove
 
     def attribute_mappings(self, pycls):
         """
         :param pycls: The python model class
         :return: The micro object-relational definition for the specified python model class
         """
-        #print(f"attrinbute_mapping {Tournament} {pycls}")
         return {Tournament:
                      [Betty.private_attribute('name'),
                       Betty.private_attribute('start_dt'),
@@ -260,10 +260,10 @@ class Betty:
         Run the commands to delete the DB
         :return: None
         """
-        commands = [f"DROP TABLE IF EXISTS {table} CASCADE;" for table in cls.entities_mapping.values()]
-
+        commands = [f"DROP TABLE IF EXISTS {table} CASCADE;" for table in Storable.entities.values()] #cls.entities_mapping.values()]
+        print(f'betty: {commands}')
         store = cls.get_store()
-        if store.run_commands(commands) == True:
+        if store.run_commands(commands, force_debug=True) == True:
             print('DB TABLES DROPPED')
 
     @classmethod
@@ -303,25 +303,7 @@ class Betty:
         :return: the id of the newly stored entity or else None
         """
         return entity.save()
-        pycls = type(entity)
-        attr_list = map(lambda x: x[0], Betty().attribute_mappings(pycls))
-        attr_values = []
-        for mapping in Betty().attribute_mappings(pycls):
-            entity_attr = getattr(entity, mapping[1])
-            if isinstance(entity_attr, Field):
-                value = entity_attr.dbfy_value()
-            if callable(entity_attr):
-                # attribute available in the entity as a callable object, typically a bound method
-                value = entity_attr()
-            else:
-                # attribute available in the entity as a regular object attribute
-                value = entity_attr
-            attr_values.append("NULL" if value is None else f"'{str(value)}'")
-        if entity.id is None or entity.id._value is None:
-            entity.id = Betty().get_store().insert(Betty().class_entity(type(entity)), attr_list, attr_values)
-        else:
-            Betty().get_store().update(Betty().class_entity(type(entity)), entity.id, attr_list, attr_values)
-        return entity.id
+
 
 if __name__ == "__main__":
     betty = Betty()

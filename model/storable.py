@@ -92,17 +92,22 @@ class Referenceable(Field):
     def __str__(self):
         return str(self._referred if self._referred else self.id)
 
+STORABLE_ENTITY_ATTR_NAME = '_table_'
+
 class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
         print(f"Adding field attributes to class {name}")
         # Define class attributes
+        if entity_name:=attrs.get(STORABLE_ENTITY_ATTR_NAME):
+            print(f"Adding class {name} : {entity_name} to entities mapping")
+            Storable.entities[name] = entity_name
         attrs['_class_initialized'] = False
         attrs['_uniqueFields'] = None
         attrs['_uniqueConstraints'] = None
         attrs['_fields'] = None
-        if not attrs.get('_table_', None):
+        if not attrs.get(STORABLE_ENTITY_ATTR_NAME, None):
             # if no table name is given, deduce our own from the class name
-            attrs['_table_'] = dbfy(name)
+            attrs[STORABLE_ENTITY_ATTR_NAME] = dbfy(name)
         return super().__new__(mcs, name, bases, attrs)
 
 class Storable(ABC, metaclass=StorableMeta):
@@ -112,6 +117,7 @@ class Storable(ABC, metaclass=StorableMeta):
     #_uniqueFields = None
     #_uniqueConstraints = None
     #_fields = None
+    entities = dict()
 
     @classmethod
     def init_class(cls, instance):
@@ -187,7 +193,8 @@ class Storable(ABC, metaclass=StorableMeta):
             # fill-in the field attributes
             for field_name in self._fields:
                 field = self.__getattribute__(field_name)
-                field._value = result[0].get(field_name, result[0].get(dbfy(field_name)))
+                column_name = field.dbfy_name(field_name)
+                field._value = result[0].get(column_name, result[0].get(field_name))
         return result
 
     def save(self) -> int:
