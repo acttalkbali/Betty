@@ -24,7 +24,7 @@ class SqlStore:
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            print(f"CREATING SQL_STORE INSTANCE, CONFIG:{cls.DEFAULT_DB_CONFIG}")
+            #print(f"CREATING SQL_STORE INSTANCE, CONFIG:{cls.DEFAULT_DB_CONFIG}")
             cls._instance = super().__new__(cls, *args, **kwargs)
         return cls._instance
 

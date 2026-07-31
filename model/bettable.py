@@ -9,6 +9,10 @@ BETTABLE_STATE_OPEN = "OPEN"
 BETTABLE_STATE_RUNNING = "RUNNING"
 BETTABLE_STATE_CLOSED = "CLOSED"
 
+BETTABLE_OUTCOME_A_WINS = "1"
+BETTABLE_OUTCOME_B_WINS = "2"
+BETTABLE_OUTCOME_DRAW = "0"
+
 class Bettable(Storable):
     _table_ = "bettable"
 
@@ -55,8 +59,3 @@ class Bettable(Storable):
         return self._b_team.id
 
     # storable -----------------------------------------------------------------
-
-    def load(self, condition=''):
-        return super().load(condition)
-        return self.store_mgr.load(self, f"phase_id={self.phase_id} AND team_a_id={self.a_team_id} AND team_b_id={self.b_team_id}" + (f" AND {condition}" if condition else ''))
-

@@ -36,24 +36,8 @@ class Bet(Storable):
 
     # storable -----------------------------------------------------------------
 
-    """def load(self, condition=''):
-        conditions = []
-        if self.id:
-            conditions.append(self.store.wrap_condition('id', '=', self.id))
-        else:
-            if self._bettor:
-                conditions.append(self.store.wrap_condition('bettor_id', '=', self.bettor_id))
-            if self._bettable:
-                conditions.append(self.store.wrap_condition('bettable_id', '=', self.bettable_id))
-        result = self.store_mgr.load(type(self), ' AND '.join(conditions))
-        if len(result)==1:
-            self._prediction = result[0]['prediction']
-            self._score = result[0]['score']
-            self._id = result[0]['id']
-        return result"""
-
     def save(self):
         if self._bettable._referred._start_dt._value > datetime.now().replace(tzinfo=timezone.utc):
             super().save()
         else:
-            print(f"{__file}__ Bet rejected: Bettable has already started ({self._bettable._referred._start_dt._value})")
+            print(f"{__file__} Bet rejected: Bettable has already started ({self._bettable._referred._start_dt._value})")

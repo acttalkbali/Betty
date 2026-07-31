@@ -40,9 +40,6 @@ class SheepValue(Storable):
     def team_name(self):
         return self._team._name if isinstance(self._team, Team) else f"Team {self.team_id}"
 
-    def load(self, condition = ''):
-        self.store_mgr.load(self)
-
 
 if __name__ == '__main__':
     from .betty import Betty

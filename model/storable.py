@@ -96,10 +96,10 @@ STORABLE_ENTITY_ATTR_NAME = '_table_'
 
 class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
-        print(f"Adding field attributes to class {name}")
+        #print(f"Adding field attributes to class {name}")
         # Define class attributes
         if entity_name:=attrs.get(STORABLE_ENTITY_ATTR_NAME):
-            print(f"Adding class {name} : {entity_name} to entities mapping")
+            #print(f"Adding class {name} : {entity_name} to entities mapping")
             Storable.entities[name] = entity_name
         attrs['_class_initialized'] = False
         attrs['_uniqueFields'] = None
@@ -140,7 +140,7 @@ class Storable(ABC, metaclass=StorableMeta):
                     if isinstance(v, Field):
                         instance_class._fields.append(k)
 
-            print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
+            #print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
     def __init__(self, store_mgr, id=None):

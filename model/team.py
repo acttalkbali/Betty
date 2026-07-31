@@ -1,9 +1,6 @@
 from datetime import datetime, timedelta
 from .storable import Storable, Field, DbText, UniqueField
 
-
-#from SqlStore import SqlStore
-
 class Team(Storable):
     _table_ = "team"
 
@@ -29,10 +26,6 @@ class Team(Storable):
     def tournament_id(self):
         return self._tournament._id
 
-    def load(self, condition:str = ''):
-        # todo use the mini model mapping to hide the attribute names
-        results = super().load(condition)
-        return results
 
 if __name__ == '__main__':
     from .betty import Betty

@@ -34,6 +34,3 @@ class Phase(Storable):
 
     def tournament_id(self):
         return self._tournament.id
-
-    def load(self, condition = ''):
-        self.store_mgr.load(self)

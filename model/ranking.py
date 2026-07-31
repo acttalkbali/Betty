@@ -32,7 +32,3 @@ class Ranking(Storable):
         return self._tournament._id
 
     # storable -----------------------------------------------------------------
-
-    def load(self, condition=''):
-        return self.store_mgr.load(self, f"bettor_id={self.bettor_id} AND tournament_id={self.tournament_id}" + (f" AND {condition}" if condition else ''))
-

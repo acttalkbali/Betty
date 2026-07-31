@@ -28,21 +28,3 @@ class SheepLivestock(Storable):
     #property
     def sheep_value_id(self) -> int|None:
         return self._sheep_value._id if isinstance(self._sheep_value, SheepValue) else 0
-
-    def load(self, condition = ''):
-        return super().load(condition)
-        conditions = []
-        if self.id:
-            conditions.append(self.store.wrap_condition('id', '=', self.id))
-        else:
-            if self._bettor:
-                conditions.append(self.store.wrap_condition('bettor_id', '=', self._bettor.id))
-            if self._sheep_value:
-                conditions.append(self.store.wrap_condition('sheep_value_id', '=', self.sheep_value_id))
-        result = self.store_mgr.load(type(self), ' AND '.join(conditions))
-        if len(result)==1:
-            self._quantity = result[0]['quantity']
-            self._id = result[0]['id']
-            self._bettor = self._bettor or result[0]['bettor_id']
-            self._sheep_value = self._sheep_value or result[0]['sheep_value_id']
-        return result

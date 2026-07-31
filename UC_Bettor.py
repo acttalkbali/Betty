@@ -21,7 +21,7 @@ class UiBettorContext:
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            print("CREATING UiBettorContext")
+            #print("CREATING UiBettorContext")
             cls._instance = super().__new__(cls)
         return cls._instance
 
@@ -79,8 +79,8 @@ def login(bettor_name, bettor_pwd) -> Bettor|None:
             return None
         else:
             UiBettorContext().logged_in = bettor
-            ui.info("You are logged in")
-            print(f"logged_in = {UiBettorContext().logged_in}")
+            ui.info(f"Welcome {bettor_name}, you are now logged in")
+            #print(f"logged_in = {UiBettorContext().logged_in}")
             return bettor
     else:
         ui.error_msg(f"{bettor_name} is not registered")
@@ -234,7 +234,7 @@ def bet(bettor):
             # Choose from the applicable OPEN bettables
             choices = []
             for attr_dict in attr_dicts:
-                print(attr_dicts)
+                #print(attr_dicts)
                 team_a = Team(Betty(), id=attr_dict['a_team_id'])
                 team_b = Team(Betty(), id=attr_dict['b_team_id'])
                 team_a.load()
@@ -247,10 +247,12 @@ def bet(bettor):
             selection = ui.input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name._value} - {x[0]._b_team._referred._name._value}" + (f" << {x[1]._prediction._value} >>" if x[1]._prediction._value else ''))
 
             if selection >= 0:
-                prediction = input(f"{choices[selection][0]} result prediction (1=A, 2=B, 12=A or B, 10=A or draw, 20=B or draw): ")
-                choices[selection][1]._prediction._value = int(prediction)
-                choices[selection][1].save()
-                ui.info("Your prediction has been registered")
+                while (prediction:= input(f"{choices[selection][0]} result prediction (1=A wins | 2=B wins | 12=A or B wins | 10=A wins or draw | 20=B wins or draw | 0 exit): ").strip()) not in ['0', '1', '2', '12', '10', '20']:
+                    pass # Not a valid entry, just try again
+                if prediction != '0':
+                    choices[selection][1]._prediction._value = int(prediction)
+                    choices[selection][1].save()
+                    ui.info("Your prediction has been registered")
         else:
             ui.error_msg("Yor must first select a tournament")
     else:
@@ -277,9 +279,6 @@ def tournament_status():
         if not UiBettorContext().tournament_selected_id:
             tournament_selection(bettor, ['OPEN', 'RUNNING'])
         if UiBettorContext().tournament_selected_id:
-            # todo add bettable result if available
-            # todo add prediction if available
-            #"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, b.state, b.outcome, bt.prediction FROM bettable b JOIN phase p ON b.phase_id = p.id JOIN tournament tr ON p.tournament_id=tr.id FULL JOIN bet bt ON bt.bettable_id=b.id ORDER BY b.start_dt ASC"
             attr_dicts = Betty().query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, b.state, b.outcome, bt.prediction"
                                        f" FROM {Bettable._table_} b"
                                        f" JOIN {Phase._table_} p ON b.phase_id = p.id"

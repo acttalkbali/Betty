@@ -63,10 +63,6 @@ class Tournament(Storable):
         if value >= self._start_dt: #
             self._end_dt = value
 
-    def load(self, condition = ''):
-        self.store_mgr.run_query(f"SELECT * FROM {self._table_}" + (f" WHERE {condition}" if condition else '') + ";")
-
-
 if __name__ == '__main__':
     from .betty import Betty
     betty = Betty()
