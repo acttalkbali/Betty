@@ -1,4 +1,4 @@
-from .storable import Storable, Referenceable, Field
+from .storable import Storable, Referenceable, Field, UniqueConstraint
 from .bettor import Bettor
 from .tournament import Tournament
 
@@ -6,12 +6,13 @@ from datetime import datetime
 
 class Ranking(Storable):
     _table_ = "ranking"
-    def __init__(self, store, tournament: Tournament, bettor: Bettor, rank:int, score:int|None=None):
+    def __init__(self, store, tournament: Tournament, bettor: Bettor, rank:int|None=None, score:int|None=None):
         super().__init__(store)
         self._rank = Field(rank)
         self._bettor = Referenceable(bettor)
         self._tournament = Referenceable(tournament)
         self._score = Field(score)
+        self._unique_constraint = UniqueConstraint(['_bettor', '_tournament'])
 
     # built_ins -----------------------------------------------------------------
 

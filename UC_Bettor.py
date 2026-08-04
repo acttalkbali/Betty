@@ -10,6 +10,8 @@ import ui.console_ui as ui
 
 
 #================== UI context
+E_PREDICTIONS = ('1', '2', '0', '10', '20', '12')
+E_OUTCOMES = ('1', '2', '0')
 
 class UiBettorContext:
     """
@@ -60,7 +62,7 @@ def register() -> Bettor|None:
         UiBettorContext().logged_in = bettor
         return bettor
 
-def login(bettor_name, bettor_pwd) -> Bettor|None:
+def login(bettor_name='', bettor_pwd='') -> Bettor|None:
     """
     UC bettor login:
     A registered bettor logs-in to Betty using its pseudo or email address and password.
@@ -87,7 +89,7 @@ def login(bettor_name, bettor_pwd) -> Bettor|None:
         if ui.yes_no("Do you want to register? "):
             return register()
 
-def logout(bettor)->int:
+def logout(bettor:Bettor)->int:
     """
     UC bettor logout:
     A registered bettor logs-out from Betty
@@ -97,7 +99,7 @@ def logout(bettor)->int:
     UiBettorContext().tournament_selected_name = None
     return -1
 
-def tournament_registration(bettor)->None:
+def tournament_registration(bettor:Bettor)->None:
     """
     UC Tournament registration:
     PRE bettor logged-in
@@ -107,7 +109,7 @@ def tournament_registration(bettor)->None:
     """
     if  UiBettorContext().logged_in:
         # Select the existing future or ongoing tournaments to which the bettor hasn't yet registered to
-        attr_dicts = Betty().query(f"SELECT tr.id,tr.name,tr.start_dt,tr.end_dt,tr.sheep_credit,p.bettor_id FROM {Tournament._table_} tr FULL JOIN participation p ON p.tournament_id=tr.id WHERE p.tournament_id IS NULL AND end_dt > NOW() ORDER BY tr.start_dt;") # AND p.bettor_id={UiBettorContext().logged_in.id}
+        attr_dicts = Betty().query(f"SELECT tr.id,tr.name,tr.start_dt,tr.end_dt,tr.sheep_credit,p.bettor_id FROM {Tournament._table_} tr FULL JOIN participation p ON p.bettor_id = {bettor.id} AND p.tournament_id=tr.id WHERE p.tournament_id IS NULL AND end_dt > NOW() ORDER BY tr.start_dt;") # AND p.bettor_id={UiBettorContext().logged_in.id}
         # filter out already registered tournaments
         attr_dicts = list(filter(lambda x: x['bettor_id'] != UiBettorContext().logged_in.id, attr_dicts))
         if len(attr_dicts)==0:
@@ -124,7 +126,7 @@ def tournament_registration(bettor)->None:
                 UiBettorContext().participation_id = participation.id
                 UiBettorContext().credit = attr_dicts[selection]['sheep_credit']
 
-def tournament_selection(bettor, states:list[str]=None) -> int:
+def tournament_selection(bettor:Bettor, states:list[str]=None) -> int:
     """
     UC tournament selection:
     PRE bettor logged-in
@@ -159,7 +161,7 @@ UC BTeam setup:
 The admin creates a BTeam and assigns some registered bettors to it
 """
 
-def buy_sheeps(bettor):
+def buy_sheeps(bettor:Bettor):
     """
     UC The Bettor constitutes its sheep livestock
     PRE bettor logged in, OPEN tournament T selected,
@@ -214,7 +216,7 @@ def buy_sheeps(bettor):
             #    participation.save()
 
 
-def bet(bettor):
+def bet(bettor:Bettor):
     """
     UC Bet:
     PRE bettor logged-in, OPEN/RUNNING tournament T selected
@@ -247,12 +249,12 @@ def bet(bettor):
             selection = ui.input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name._value} - {x[0]._b_team._referred._name._value}" + (f" << {x[1]._prediction._value} >>" if x[1]._prediction._value else ''))
 
             if selection >= 0:
-                while (prediction:= input(f"{choices[selection][0]} result prediction (1=A wins | 2=B wins | 12=A or B wins | 10=A wins or draw | 20=B wins or draw | 0 exit): ").strip()) not in ['0', '1', '2', '12', '10', '20']:
+                while (prediction:= input(f"{choices[selection][0]} result prediction (1=A wins | 2=B wins | 12=A or B wins | 10=A wins or draw | 20=B wins or draw | 0 draw): ").strip()) not in ['', '0', '1', '2', '12', '10', '20']:
                     pass # Not a valid entry, just try again
-                if prediction != '0':
+                if prediction != '':
                     choices[selection][1]._prediction._value = int(prediction)
                     choices[selection][1].save()
-                    ui.info("Your prediction has been registered")
+                    ui.info("Your prediction has been recorded")
         else:
             ui.error_msg("Yor must first select a tournament")
     else:
@@ -300,7 +302,7 @@ def tournament_status():
                 print(bettable_str)
 
 
-def show_ranking(bettor):
+def show_ranking(bettor:Bettor):
     """
     UC Tournament ranking:
     PRE bettor logged-in, OPEN tournament T selected
@@ -328,18 +330,20 @@ def show_ranking(bettor):
 
 if __name__ == '__main__':
     #load_dotenv()
-    bettor = login('wys','wys') # todo remove these hard-coded parameter values
-    tournament_selection(bettor)
-    options = [('Make a bet', lambda : bet(bettor)),
-               ('Show ranking', lambda : show_ranking(bettor)),
-               ('Buy sheeps', lambda : buy_sheeps(bettor)),
-               ('Status', lambda : tournament_status()),
-               ('Switch to another tournament', lambda: tournament_selection(bettor, ["OPEN", "RUNNING"])),
-               ('Register to another tournament', lambda : tournament_registration(bettor)),
-               ('Logout', lambda : logout(bettor))]
-    selection = 0
-    ret = None
-    while ret != -1:
-        ui.info(f'_____ Selected tournament: {UiBettorContext().tournament_selected_name}')
-        selection = ui.input_selection(options, lambda x:x[0], exit_option=6)
-        ret = options[selection][1]() # execute the action
+    #bettor = login('wys','wys') # todo remove these hard-coded parameter values
+    bettor = login() # todo remove these hard-coded parameter values
+    if bettor:
+        tournament_selection(bettor)
+        options = [('Make a bet', lambda : bet(bettor)),
+                   ('Show ranking', lambda : show_ranking(bettor)),
+                   ('Buy sheeps', lambda : buy_sheeps(bettor)),
+                   ('Status', lambda : tournament_status()),
+                   ('Switch to another tournament', lambda: tournament_selection(bettor, ["OPEN", "RUNNING"])),
+                   ('Register to another tournament', lambda : tournament_registration(bettor)),
+                   ('Logout', lambda : logout(bettor))]
+        selection = 0
+        ret = None
+        while ret != -1:
+            ui.info(f'_____ Selected tournament: {UiBettorContext().tournament_selected_name}')
+            selection = ui.input_selection(options, lambda x:x[0], exit_option=6)
+            ret = options[selection][1]() # execute the action

@@ -39,7 +39,7 @@ class SqlStore:
             self._initialised = True
 
     def reset(self) -> None:
-        cls._instance = None
+        self._instance = None
     # ─────────────────────────────────────────────────────────────────────────────
     # HELPERS — do not modify
     # ─────────────────────────────────────────────────────────────────────────────

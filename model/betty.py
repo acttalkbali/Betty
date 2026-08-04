@@ -152,7 +152,8 @@ class Betty:
                  {cls.references_by_id(Tournament)},
                  {cls.references_by_id(Bettor)},
                  rank INT NOT NULL,
-                 score FLOAT
+                 score FLOAT,
+                 UNIQUE ({cls.references_by_id(Tournament)}, {cls.references_by_id(Bettor)})
                  );
             """
         ]
