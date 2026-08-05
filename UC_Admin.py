@@ -119,7 +119,6 @@ def compute_ranking():
             f"WHERE b.phase_id = p.id AND p.tournament_id = {UiAdminContext().tournament_selected_id} AND b.outcome IS NOT NULL "
             f"ORDER BY b.start_dt ASC")
 
-        print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
         ranking = 1
 
@@ -157,6 +156,18 @@ def compute_ranking():
             r._score._value=bettor_score[1]
             r.save()
 
+        # Handle the bettor with no bet yet
+        ranking += 1
+        for name, nickname, nbets, id in filter(lambda x: x[2]==0, tournament_participation(silent=True)):
+            print(f"{ranking:3} {nickname:20} 0 points")
+            r = Ranking(Betty(), tournament=UiAdminContext().tournament_selected_id, bettor=id)
+            r.load()
+            r._rank._value=ranking
+            r._score._value=0
+            r.save()
+
+
+
 
 def show_ranking():
     """
@@ -167,10 +178,11 @@ def show_ranking():
     """
     if UiAdminContext().tournament_selected:
         attr_dicts = Betty().query(
-            f"SELECT r.id, b.nickname, r.tournament_id, r.score, r.rank "
-            f"FROM {Ranking._table_} r, {Tournament._table_} tr, {Bettor._table_} b "
+            f"SELECT r.id, br.nickname, r.tournament_id, r.score, r.rank "
+            f"FROM {Ranking._table_} r "
+            f"JOIN {Bettor._table_} br ON r.bettor_id = br.id "
             f"WHERE r.tournament_id={UiAdminContext().tournament_selected_id} "
-            f"ORDER BY r.rank DESC")
+            f"ORDER BY r.rank ASC")
 
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
@@ -182,6 +194,39 @@ def show_ranking():
                 ranking = rank + 1
             print(f"{ranking:3} {attr_dict['nickname']:20} {attr_dict['score']:3} points")
 
+"""
+UC The admin get the list of a tournament's paticipants
+"""
+def tournament_participation(silent=False) -> list[(int,str,str,int)]:
+    if not UiAdminContext().tournament_selected:
+        tournament_selection()
+    if UiAdminContext().tournament_selected:
+        attr_dicts = Betty().query(
+            f"SELECT br.name, br.nickname, br.id "
+            f"FROM {Participation._table_} p "
+            f"FULL JOIN {Bettor._table_} br ON p.bettor_id=br.id "
+            f"WHERE p.tournament_id={UiAdminContext().tournament_selected_id} "
+            f"ORDER BY br.name ASC")
+
+        if not silent: print(f"{UiAdminContext().tournament_selected_name} participants:")
+
+        bet_stats = []
+        for attr_dict in attr_dicts:
+            bettor_attr_dicts = Betty().query(
+                f"SELECT COUNT(bt.id) as bet_counter, br.nickname "
+                f"FROM {Bet._table_} bt "
+                f"JOIN {Bettor._table_} br ON bt.bettor_id={attr_dict['id']} "
+                f"JOIN {Bettable._table_} ba ON bt.bettable_id=ba.id "
+                f"JOIN {Phase._table_} ph ON ph.id=ba.phase_id AND ph.tournament_id={UiAdminContext().tournament_selected_id} "
+                f"GROUP BY br.nickname")
+            nb_bets = bettor_attr_dicts[0]['bet_counter'] if bettor_attr_dicts else 0
+            bet_stats.append((attr_dict['name'],attr_dict['nickname'],nb_bets,attr_dict['id'],))
+
+        result = sorted(bet_stats, key=lambda x: x[2], reverse=True)
+        if not silent:
+            for bet_stat in result:
+                print(f"   {bet_stat[0]} as {bet_stat[1]} : {bet_stat[2]} bets")
+        return result
 
 """
 UC The admin registers a bettable score after its completion:
@@ -207,6 +252,7 @@ if __name__ == '__main__':
     tournament_selection()
     options = [('Provide/Amend the outcome of a bettable', lambda : input_outcome()),
                ('Open tournament', lambda : open_tournament()),
+               ('Tournament participation', tournament_participation),
                ('Compute ranking', lambda: compute_ranking()),
                ('Show ranking', lambda: show_ranking()),
                ('Status', lambda : tournament_status()),
