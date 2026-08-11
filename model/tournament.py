@@ -6,6 +6,7 @@ from .storable import Storable, DbDate, Field, UniqueField, DbText, StorableMeta
 TOURNAMENT_STATE_OPEN = "OPEN"
 TOURNAMENT_STATE_RUNNING = "RUNNING"
 TOURNAMENT_STATE_CLOSED = "CLOSED"
+TOURNAMENT_STATE_LOCKED = "LOCKED"
 
 class Tournament(Storable):
     _table_ = "tournament"

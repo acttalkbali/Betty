@@ -87,29 +87,43 @@ def tournament_selection(states:list[str]=None) -> int:
     """
 
     states_condition = f" tr.state IN ({str(states)[1:-1]})" if states else 'TRUE'
-    attr_dicts = Betty().query(f"SELECT tr.id, tr.name, tr.start_dt FROM {Tournament._table_} tr WHERE {states_condition}")
-    if len(attr_dicts)==0:
+    tournaments,_ = Tournament(Betty()).load_all(states_condition)
+    #attr_dicts = Betty().query(f"SELECT tr.id, tr.name, tr.start_dt FROM {Tournament._table_} tr WHERE {states_condition}")
+    if len(tournaments)==0:
         info("No tournament available")
     else:
-        if len(attr_dicts) > 1:
-            selection = input_selection(attr_dicts, lambda attr_dict: attr_dict['name'])
+        if len(tournaments) > 1:
+            selection = input_selection(tournaments, lambda tournament: tournament._name)
         else:
             selection = 0
-        UiAdminContext().tournament_selected_name = attr_dicts[selection]['name']
-        UiAdminContext().tournament_selected_id = attr_dicts[selection]['id']
-        UiAdminContext().tournament_selected = Tournament(Betty(), name=attr_dicts[selection]['name'], id=attr_dicts[selection]['id'])
+        tr = tournaments[selection]
+        UiAdminContext().tournament_selected_name = tr._name
+        UiAdminContext().tournament_selected_id = tr._id
+        UiAdminContext().tournament_selected = Tournament(Betty(), name=tr._name, id=tr._id)
         print(f"Selected tournament : {UiAdminContext().tournament_selected_id}")
         return selection
     return -1
 
-def open_tournament():
+def set_tournament_state():
     """
     UC Tournament Publishing:
     PRE tournament is selected
     The admin opens the tournament to bettors. The tournament's web-site is created, an invitation e-mail wih the link is sent
     to the registered bettors (+ filtering +), and possibly to additional bettor candidates
     """
-    print("<<<< Not implemented >>>>")
+    if not UiAdminContext().tournament_selected:
+        tournament_selection()
+    if UiAdminContext().tournament_selected:
+        print(f"{UiAdminContext().tournament_selected} : Current state is {UiAdminContext().tournament_selected._state}")
+        states = [("OPEN tournament", tournament.TOURNAMENT_STATE_OPEN),
+                  ("CLOSE tournament", tournament.TOURNAMENT_STATE_CLOSED),
+                  ("LOCK tournament", tournament.TOURNAMENT_STATE_LOCKED),
+                  ("UNLOCK tournament", tournament.TOURNAMENT_STATE_OPEN) # todo goto open/close depending on date?
+                  ]
+        while (selection := input_selection(states, lambda x: x[0])) >= 0:
+            UiAdminContext().tournament_selected._state._value = states[selection][1]
+            UiAdminContext().tournament_selected.save()
+            print(f"{UiAdminContext().tournament_selected} : state is {UiAdminContext().tournament_selected._state}")
 
 def betty_status():
     """
@@ -293,15 +307,15 @@ if __name__ == '__main__':
     #load_dotenv()
     tournament_selection()
     options = [('Provide/Amend the outcome of a bettable', lambda : input_bettable_outcome()),
-               ('Open tournament', lambda : open_tournament()),
+               ('Open tournament', lambda : set_tournament_state()),
                ('Tournament participation', tournament_participation),
                ('Compute ranking', lambda: compute_ranking()),
                ('Show ranking', lambda: show_ranking()),
                ('Status', lambda : betty_status()),
                ('Quit', lambda : quit())]
-    selection = 0
+    the_selection = 0
     ret = None
     while ret != -1:
         info(f'_____ Selected tournament: {UiAdminContext().tournament_selected_name}')
-        selection = input_selection(options, lambda x:x[0], exit_option=6)
-        ret = options[selection][1]() # execute the action
+        the_selection = input_selection(options, lambda x:x[0], exit_option=6)
+        ret = options[the_selection][1]() # execute the action

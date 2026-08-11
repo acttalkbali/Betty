@@ -1,3 +1,4 @@
+import copy
 import re
 from abc import ABC, abstractmethod, ABCMeta
 from email.policy import default
@@ -140,7 +141,7 @@ class Storable(ABC, metaclass=StorableMeta):
                     if isinstance(v, Field):
                         instance_class._fields.append(k)
 
-            #print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
+            print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
     def __init__(self, store_mgr, id=None):
@@ -159,7 +160,7 @@ class Storable(ABC, metaclass=StorableMeta):
     def store(self):
         return self.store_mgr.get_store()
 
-    def load(self, condition = ''):
+    def _load(self, condition = ''):
         if not self._class_initialized:
             Storable.init_class(self)
 
@@ -189,13 +190,34 @@ class Storable(ABC, metaclass=StorableMeta):
                     break
 
         result = self.store_mgr.load(type(self), ' AND '.join(conditions))
-        if len(result)==1:
-            # fill-in the field attributes
-            for field_name in self._fields:
-                field = self.__getattribute__(field_name)
-                column_name = field.dbfy_name(field_name)
-                field._value = result[0].get(column_name, result[0].get(field_name))
         return result
+
+    def fill(self, attr) :
+        # fill-in the field attributes
+        self._attr = attr # keep the data source
+        for field_name in self._fields:
+            field = self.__getattribute__(field_name)
+            column_name = field.dbfy_name(field_name)
+            field._value = attr.get(column_name, attr.get(field_name))
+        return self
+
+    def load(self, condition = ''):
+        result = self._load(condition)
+        if len(result)==1:
+            # fill-in the field attributes of self
+            self.fill(result[0])
+        return result
+
+
+    def load_all(self, condition = ''):
+        if not self._class_initialized:
+            Storable.init_class(self)
+            attrs = self._load(condition)
+            result = []
+            for attr in attrs:
+                o = copy.deepcopy(self)
+                result.append(o.fill(attr))
+            return result, attrs
 
     def save(self) -> int:
         if not self._class_initialized:
@@ -204,6 +226,7 @@ class Storable(ABC, metaclass=StorableMeta):
         # Check if all required field have a value. If not and the field has a default, use it.
         col_list = []
         col_values = []
+        print(self._fields)
         for attr_name in self._fields:
             field = self.__getattribute__(attr_name)
             if field._value is None:
