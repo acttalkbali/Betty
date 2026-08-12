@@ -5,7 +5,7 @@ import os
 class SqlStore:
 
     _instance = None
-    _debug = False # Set to True to have debug information in the console
+    _debug = True # Set to True to have debug information in the console
 
     DEFAULT_DB_CONFIG = {
         #"host": os.getenv("DB_HOST"),

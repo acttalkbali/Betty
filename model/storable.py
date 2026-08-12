@@ -5,6 +5,9 @@ from email.policy import default
 from functools import reduce
 from importlib.metadata import requires
 
+STORABLE_ORDER_ASC = 'ASC'
+STORABLE_ORDER_DESC = 'DESC'
+
 def dbfy(name : str):
     if name:
         name = name.strip('_')
@@ -105,6 +108,7 @@ class StorableMeta(ABCMeta):
         attrs['_class_initialized'] = False
         attrs['_uniqueFields'] = None
         attrs['_uniqueConstraints'] = None
+        attrs['_referenceables'] = None
         attrs['_fields'] = None
         if not attrs.get(STORABLE_ENTITY_ATTR_NAME, None):
             # if no table name is given, deduce our own from the class name
@@ -140,8 +144,13 @@ class Storable(ABC, metaclass=StorableMeta):
                 for k, v in instance.__dict__.items():
                     if isinstance(v, Field):
                         instance_class._fields.append(k)
+            if instance_class._referenceables is None:
+                instance_class._referenceables = []
+                for k, v in instance.__dict__.items():
+                    if isinstance(v, Referenceable):
+                        instance_class._referenceables.append(k)
 
-            print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Fields: {instance_class._fields}")
+            print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Referenceables: {instance_class._referenceables}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
     def __init__(self, store_mgr, id=None):
@@ -160,7 +169,7 @@ class Storable(ABC, metaclass=StorableMeta):
     def store(self):
         return self.store_mgr.get_store()
 
-    def _load(self, condition = ''):
+    def _load(self, condition = '', ordering:list[tuple[str,str]] = []):
         if not self._class_initialized:
             Storable.init_class(self)
 
@@ -168,7 +177,8 @@ class Storable(ABC, metaclass=StorableMeta):
         # If a unique key is filled in we use it
         # Else if a multi-column unique constraint exist and the corresponding instance attribute have valid values, use it
 
-        conditions = []
+        conditions = [condition] if condition else []
+
         # Is a unique key filled in? If yes use it
         for uniqueFieldName in self._uniqueFields:
             if (field:=self.__getattribute__(uniqueFieldName)) is not None:
@@ -189,7 +199,16 @@ class Storable(ABC, metaclass=StorableMeta):
                 if conditions: # a unique constraint condition could be built
                     break
 
-        result = self.store_mgr.load(type(self), ' AND '.join(conditions))
+        if not conditions:
+            # check for pre-filled foreign-keys (the '1 container' in a 1-N relationships)
+            for refName in self._referenceables:
+                if (field := self.__getattribute__(refName)) is not None:
+                    if field._value is not None:
+                        conditions.append(
+                            self.store.wrap_condition(field.col_name() or dbfy(refName), '=', field._id))
+
+        col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
+        result = self.store_mgr.load(type(self), ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 
     def fill(self, attr) :
@@ -209,15 +228,16 @@ class Storable(ABC, metaclass=StorableMeta):
         return result
 
 
-    def load_all(self, condition = ''):
+    def load_all(self, condition = '', ordering:list[tuple[str,str]] = []):
         if not self._class_initialized:
             Storable.init_class(self)
-            attrs = self._load(condition)
-            result = []
-            for attr in attrs:
-                o = copy.deepcopy(self)
-                result.append(o.fill(attr))
-            return result, attrs
+
+        attrs = self._load(condition, ordering)
+        result = []
+        for attr in attrs:
+            o = copy.deepcopy(self)
+            result.append(o.fill(attr))
+        return result, attrs
 
     def save(self) -> int:
         if not self._class_initialized:

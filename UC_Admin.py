@@ -10,6 +10,7 @@ from model.betty import Betty
 from model.participation import Participation
 from model.phase import Phase
 from model.ranking import Ranking
+from model.storable import STORABLE_ORDER_DESC
 from model.team import Team
 from model.tournament import Tournament
 from ui.console_ui import input_selection, info
@@ -131,10 +132,7 @@ def betty_status():
     Existing tournaments are listed together with their information.
     Namely status, start date, end date, #participants and for each phase: its status, start date, %age completion, #bettables, #bets.
     """
-    tr_attr_dicts = Betty().query(
-        f"SELECT id, name, start_dt, end_dt, state  "
-        f"FROM {Tournament._table_} tr "
-        f"ORDER BY start_dt DESC")
+    tournaments,tr_attr_dicts = Tournament(Betty()).load_all(ordering=[('_start_dt', STORABLE_ORDER_DESC)
 
     for tr_attr_dict in tr_attr_dicts:
         print(f"Tournament: {tr_attr_dict['id']} {tr_attr_dict['name']} [{tr_attr_dict['start_dt']} - {tr_attr_dict['end_dt']}] {tr_attr_dict['state']}")

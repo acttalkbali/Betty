@@ -193,7 +193,7 @@ class Betty:
         return Betty().get_store().run_query(command)
 
     @classmethod
-    def load(cls, pycls, condition: str): # todo hide SQL-specifics in sql_store
+    def load(cls, pycls, condition: str, ordering:str): # todo hide SQL-specifics in sql_store
         """
         loads all records for the model entity matching the specified condition from the DB
         :param pycls: The python model class
@@ -202,7 +202,7 @@ class Betty:
         """
         table = Betty().class_entity(pycls)
         if table:
-            query = f"SELECT * FROM {table}" + (f" WHERE {condition}" if condition else '') + ";"
+            query = f"SELECT * FROM {table}" + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
             return Betty().get_store().run_query(query)
         else:
             return None
