@@ -67,7 +67,8 @@ class UniqueConstraint:
         self._field_names = field_names
 
 class Referenceable(Field):
-    def __init__(self, referred: Storable, db_type=DbInt, name=None, required=True, dflt=None):
+    def __init__(self, storable_cls, referred: Storable|int, db_type=DbInt, name=None, required=True, dflt=None):
+        self._storable_cls = storable_cls
         if isinstance(referred, Storable):
             super().__init__(referred.id, db_type, name, required, dflt)
             self._referred = referred
@@ -169,7 +170,7 @@ class Storable(ABC, metaclass=StorableMeta):
     def store(self):
         return self.store_mgr.get_store()
 
-    def _load(self, condition = '', ordering:list[tuple[str,str]] = []):
+    def _load(self, condition = '',ordering:list[tuple[str,str]] = [], consider_joins:bool = False, ):
         if not self._class_initialized:
             Storable.init_class(self)
 
@@ -190,25 +191,30 @@ class Storable(ABC, metaclass=StorableMeta):
                 for field_name in self.__getattribute__(uniqueConstraint)._field_names:
                     if (field:=self.__getattribute__(field_name)) is not None:
                         try: # assume field instance
-                            conditions.append(self.store.wrap_condition(field._name or field.dbfy_name(field_name), '=', field._value))
+                            if field._value:
+                                conditions.append(self.store.wrap_condition(field._name or field.dbfy_name(field_name), '=', field._value))
                         except AttributeError:
-                            conditions.append(self.store.wrap_condition(field_name or dbfy(field_name), '=', field))
+                            if field:
+                                conditions.append(self.store.wrap_condition(field_name or dbfy(field_name), '=', field))
                     else:
                         conditions = []
                         break
                 if conditions: # a unique constraint condition could be built
                     break
 
-        if not conditions:
+        joins = []
+        if consider_joins:
             # check for pre-filled foreign-keys (the '1 container' in a 1-N relationships)
             for refName in self._referenceables:
-                if (field := self.__getattribute__(refName)) is not None:
-                    if field._value is not None:
-                        conditions.append(
-                            self.store.wrap_condition(field.col_name() or dbfy(refName), '=', field._id))
+                if (referenceable := self.__getattribute__(refName)) is not None:
+                    if referenceable._id:
+                        joins.append((referenceable._storable_cls, dbfy(refName), referenceable._id)) # JOIN table refName ON refName.id = id-value
+                    else:
+                        # load related entities too
+                        joins.append((referenceable._storable_cls, dbfy(refName), None)) # JOIN table refName ON refName.id = refName_id
 
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
-        result = self.store_mgr.load(type(self), ' AND '.join(conditions), ', '.join(col_ordering))
+        result = self.store_mgr.load(type(self), joins, ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 
     def fill(self, attr) :
@@ -228,11 +234,11 @@ class Storable(ABC, metaclass=StorableMeta):
         return result
 
 
-    def load_all(self, condition = '', ordering:list[tuple[str,str]] = []):
+    def load_all(self, condition = '', ordering:list[tuple[str,str]] = [], consider_joins:bool = True):
         if not self._class_initialized:
             Storable.init_class(self)
 
-        attrs = self._load(condition, ordering)
+        attrs = self._load(condition, ordering, consider_joins=consider_joins)
         result = []
         for attr in attrs:
             o = copy.deepcopy(self)
@@ -266,6 +272,3 @@ class Storable(ABC, metaclass=StorableMeta):
         else:
             self.store_mgr.get_store().update(self.store_mgr.class_entity(type(self)), self.id, col_list, col_values)
         return self.id
-
-
-

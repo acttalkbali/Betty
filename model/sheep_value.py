@@ -9,9 +9,9 @@ class SheepValue(Storable):
 
     def __init__(self, store, team:Team|int=None, tournament:Tournament|int=None, sheep_value:int=None, id:int|None=None):
         super().__init__(store, id)
-        self._team = Referenceable(team)
+        self._team = Referenceable(Team, team)
         #self._team_id = team.id
-        self._tournament = Referenceable(tournament)
+        self._tournament = Referenceable(Tournament, tournament)
         #self._tournament_id = tournament.id
         self._sheep_value = Field(sheep_value)
 

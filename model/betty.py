@@ -193,16 +193,21 @@ class Betty:
         return Betty().get_store().run_query(command)
 
     @classmethod
-    def load(cls, pycls, condition: str, ordering:str): # todo hide SQL-specifics in sql_store
+    def load(cls, pycls, joins, condition: str, ordering:str): # todo hide SQL-specifics in sql_store
         """
         loads all records for the model entity matching the specified condition from the DB
         :param pycls: The python model class
+        :param joins: a list of pairs of the form (table, id-value or foreign-key-column)
         :param condition: the condition, expressed as a DB-specific expression, that the entities must meet to be loaded.
         :return:
         """
         table = Betty().class_entity(pycls)
         if table:
-            query = f"SELECT * FROM {table}" + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
+            table_joins = ' '.join([" JOIN {} {} ON {}.id={}".format(
+                                    joined._table_, selector, selector, (value and f"'{value}'") or f"{selector}_id")
+                                for joined,selector,value in joins])
+
+            query = f"SELECT * FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
             return Betty().get_store().run_query(query)
         else:
             return None

@@ -14,7 +14,7 @@ class Phase(Storable):
     def __init__(self, store, name:str, tournament:Tournament, state:str='', scoring:str=''):
         super().__init__(store)
         self._name = Field(name, DbText)
-        self._tournament = Referenceable(tournament)
+        self._tournament = Referenceable(Tournament, tournament)
         #self._tournament_id = tournament._id
         self._state = Field(state, DbText)
         self._scoring = Field(scoring, DbText)

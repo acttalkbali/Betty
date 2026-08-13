@@ -11,8 +11,8 @@ class SheepLivestock(Storable):
     """
     def __init__(self, store, sheep_value: SheepValue|int=None, bettor: Bettor|int=None, quantity: int=None, id:int|None=None):
         super().__init__(store)
-        self._sheep_value = Referenceable(sheep_value)
-        self._bettor = Referenceable(bettor)
+        self._sheep_value = Referenceable(SheepValue, sheep_value)
+        self._bettor = Referenceable(Bettor, bettor)
         self._quantity = Field(quantity)
 
     def __str__(self):

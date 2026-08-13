@@ -9,8 +9,8 @@ class Ranking(Storable):
     def __init__(self, store, tournament: Tournament, bettor: Bettor, rank:int|None=None, score:int|None=None):
         super().__init__(store)
         self._rank = Field(rank)
-        self._bettor = Referenceable(bettor)
-        self._tournament = Referenceable(tournament)
+        self._bettor = Referenceable(Bettor, bettor)
+        self._tournament = Referenceable(Tournament, tournament)
         self._score = Field(score)
         self._unique_constraint = UniqueConstraint(['_bettor', '_tournament'])
 

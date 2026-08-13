@@ -4,7 +4,7 @@ from .storable import Storable, Field, DbText, UniqueField
 class Bettor(Storable):
     _table_ = "bettor"
 
-    def __init__(self, store, name, pwd=None, email=None, nickname=None, id:int|None=None):
+    def __init__(self, store, name=None, pwd=None, email=None, nickname=None, id:int|None=None):
         super().__init__(store)
         self._name = UniqueField(name, DbText)
         self._nickname = UniqueField(nickname, DbText)
