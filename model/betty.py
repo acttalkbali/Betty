@@ -193,7 +193,7 @@ class Betty:
         return Betty().get_store().run_query(command)
 
     @classmethod
-    def load(cls, pycls, joins, condition: str, ordering:str): # todo hide SQL-specifics in sql_store
+    def load(cls, pycls, joins, join_columns:list, condition: str|None, ordering:str|None): # todo hide SQL-specifics in sql_store
         """
         loads all records for the model entity matching the specified condition from the DB
         :param pycls: The python model class
@@ -206,8 +206,7 @@ class Betty:
             table_joins = ' '.join([" JOIN {} {} ON {}.id={}".format(
                                     joined._table_, selector, selector, (value and f"'{value}'") or f"{selector}_id")
                                 for joined,selector,value in joins])
-
-            query = f"SELECT * FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
+            query = f"SELECT {table}.*{(', '+(', '.join(join_columns))) if join_columns else ''}" + f" FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
             return Betty().get_store().run_query(query)
         else:
             return None

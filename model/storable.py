@@ -114,7 +114,21 @@ class StorableMeta(ABCMeta):
         if not attrs.get(STORABLE_ENTITY_ATTR_NAME, None):
             # if no table name is given, deduce our own from the class name
             attrs[STORABLE_ENTITY_ATTR_NAME] = dbfy(name)
-        return super().__new__(mcs, name, bases, attrs)
+
+        # create the class
+        cls = super().__new__(mcs, name, bases, attrs)
+
+        if name != "Storable":
+            # Decorate the __init__ call of the Storable subclass with a call to cls.init_class as last instruction
+            basic_init = cls.__init__
+            def decorated_init(self, *args, **kwargs):
+                basic_init(self, *args, **kwargs)
+                self.__class__.init_class(self)
+            cls.__init__ = decorated_init
+
+        return cls
+
+
 
 class Storable(ABC, metaclass=StorableMeta):
 
@@ -203,18 +217,21 @@ class Storable(ABC, metaclass=StorableMeta):
                     break
 
         joins = []
+        join_columns = []
         if consider_joins:
             # check for pre-filled foreign-keys (the '1 container' in a 1-N relationships)
             for refName in self._referenceables:
                 if (referenceable := self.__getattribute__(refName)) is not None:
+                    joined_class = referenceable._storable_cls
                     if referenceable._id:
-                        joins.append((referenceable._storable_cls, dbfy(refName), referenceable._id)) # JOIN table refName ON refName.id = id-value
+                        joins.append((joined_class, dbfy(refName), referenceable._id)) # JOIN table refName ON refName.id = id-value
                     else:
                         # load related entities too
-                        joins.append((referenceable._storable_cls, dbfy(refName), None)) # JOIN table refName ON refName.id = refName_id
-
+                        joins.append((joined_class, dbfy(refName), None)) # JOIN table refName ON refName.id = refName_id
+                    if joined_class._fields: # May be false if no instance of the joined_class has been created yet
+                        join_columns.extend([f"{dbfy(refName)}.{dbfy(name)} AS {dbfy(refName)}_{dbfy(name)}" for name in joined_class._fields])
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
-        result = self.store_mgr.load(type(self), joins, ' AND '.join(conditions), ', '.join(col_ordering))
+        result = self.store_mgr.load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 
     def fill(self, attr) :

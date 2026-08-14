@@ -157,10 +157,10 @@ def compute_ranking():
     UC Tournament ranking:
     OPEN tournament T selected
     """
-
+    betty = Betty()
     if UiAdminContext().tournament_selected_id:
         # Select the tournament's bettables which have a non-NULL outcome
-        bettable_attr_dicts = Betty().query(
+        bettable_attr_dicts = betty.query(
             f"SELECT b.id as bettable_id, b.outcome, p.id as phase_id "
             f"FROM {Bettable._table_} b, {Phase._table_} p, {Tournament._table_} tr "
             f"WHERE b.phase_id = p.id AND p.tournament_id = {UiAdminContext().tournament_selected_id} AND b.outcome IS NOT NULL "
@@ -174,16 +174,16 @@ def compute_ranking():
 
         for bettable_attr_dict in bettable_attr_dicts:
             # Select all bettor predictions for that bettable
-            bets, bet_attr_dicts = Bet(Betty(), bettable=bettable_attr_dict['bettable_id'], bettor=Bettor(Betty())).load_all()
-            bet_attr_dicts = Betty().query(
-                f"SELECT bt.prediction, bt.bettor_id, br.nickname "
-                f"FROM {Bet._table_} bt, {Bettor._table_} br "
-                f"WHERE bt.bettable_id = {bettable_attr_dict['bettable_id']} AND bt.bettor_id = br.id "
-                f"ORDER BY br.nickname, bt.prediction ASC")
+            bets, bet_attr_dicts = Bet(betty, bettable=bettable_attr_dict['bettable_id'], bettor=Bettor(betty)).load_all()
+            # bet_attr_dicts = betty.query(
+            #    f"SELECT bt.prediction, bt.bettor_id, br.nickname "
+            #    f"FROM {Bet._table_} bt, {Bettor._table_} br "
+            #    f"WHERE bt.bettable_id = {bettable_attr_dict['bettable_id']} AND bt.bettor_id = br.id "
+            #    f"ORDER BY br.nickname, bt.prediction ASC")
 
             for bet_attr_dict in bet_attr_dicts:
-                scoring[(bet_attr_dict['bettor_id'],bet_attr_dict['nickname'])] = \
-                        scoring.get((bet_attr_dict['bettor_id'], bet_attr_dict['nickname']) , 0) \
+                scoring[(bet_attr_dict['bettor_id'],bet_attr_dict['bettor_nickname'])] = \
+                        scoring.get((bet_attr_dict['bettor_id'], bet_attr_dict['bettor_nickname']) , 0) \
                         + bet_score[(bet_attr_dict['prediction'],bettable_attr_dict['outcome'])]
 
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
@@ -195,7 +195,7 @@ def compute_ranking():
                 prv_score = bettor_score[1]
                 ranking = rank + 1
             print(f"{ranking:3} {bettor_score[0][1]:20} {bettor_score[1]:3} points")
-            r = Ranking(Betty(), tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0][0])
+            r = Ranking(betty, tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0][0])
             r.load()
             r._rank._value=ranking
             r._score._value=bettor_score[1]
@@ -205,7 +205,7 @@ def compute_ranking():
         ranking += 1
         for name, nickname, nbets, id in filter(lambda x: x[2]==0, tournament_participation(silent=True)):
             print(f"{ranking:3} {nickname:20} 0 points")
-            r = Ranking(Betty(), tournament=UiAdminContext().tournament_selected_id, bettor=id)
+            r = Ranking(betty, tournament=UiAdminContext().tournament_selected_id, bettor=id)
             r.load()
             r._rank._value=ranking
             r._score._value=0
