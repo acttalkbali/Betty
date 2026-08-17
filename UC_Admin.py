@@ -10,7 +10,7 @@ from model.betty import Betty
 from model.participation import Participation
 from model.phase import Phase
 from model.ranking import Ranking
-from model.storable import STORABLE_ORDER_DESC
+from model.storable import STORABLE_ORDER_DESC, joined_column
 from model.team import Team
 from model.tournament import Tournament
 from ui.console_ui import input_selection, info
@@ -174,28 +174,20 @@ def compute_ranking():
 
         for bettable_attr_dict in bettable_attr_dicts:
             # Select all bettor predictions for that bettable
-            bets, bet_attr_dicts = Bet(betty, bettable=bettable_attr_dict['bettable_id'], bettor=Bettor(betty)).load_all()
-            # bet_attr_dicts = betty.query(
-            #    f"SELECT bt.prediction, bt.bettor_id, br.nickname "
-            #    f"FROM {Bet._table_} bt, {Bettor._table_} br "
-            #    f"WHERE bt.bettable_id = {bettable_attr_dict['bettable_id']} AND bt.bettor_id = br.id "
-            #    f"ORDER BY br.nickname, bt.prediction ASC")
-
-            for bet_attr_dict in bet_attr_dicts:
-                scoring[(bet_attr_dict['bettor_id'],bet_attr_dict['bettor_nickname'])] = \
-                        scoring.get((bet_attr_dict['bettor_id'], bet_attr_dict['bettor_nickname']) , 0) \
-                        + bet_score[(bet_attr_dict['prediction'],bettable_attr_dict['outcome'])]
+            bets, _ = Bet(betty, bettable=bettable_attr_dict['bettable_id'], bettor=Bettor(betty)).load_all()
+            for bet in bets:
+                scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable_attr_dict['outcome'])]
 
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
         ranking = 1
-        for rank, bettor_score in enumerate(sorted(scoring.items(), key=lambda x: x[1], reverse=True)):
+        for rank, bettor_score in enumerate(sorted(scoring.items(), key=lambda x: x[1], reverse=True)): #  key=lambda x: x[1]
             if bettor_score[1] != prv_score:
                 # Not an ex-aequo
                 prv_score = bettor_score[1]
                 ranking = rank + 1
-            print(f"{ranking:3} {bettor_score[0][1]:20} {bettor_score[1]:3} points")
-            r = Ranking(betty, tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0][0])
+            print(f"{ranking:3} {bettor_score[0]._nickname._value:20} {bettor_score[1]:3} points")
+            r = Ranking(betty, tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0])
             r.load()
             r._rank._value=ranking
             r._score._value=bettor_score[1]
@@ -297,6 +289,7 @@ def input_bettable_outcome():
                                    f" JOIN {Phase._table_} p ON b.phase_id = p.id AND p.tournament_id={UiAdminContext().tournament_selected_id}"
                                    f" WHERE b.start_dt < '{datetime.datetime.now()}' AND b.outcome IS NULL"
                                    f" ORDER BY b.start_dt ASC")
+        # todo add tournament_name to the attr_dict
         if attr_dicts:
             while (selection:=input_selection(attr_dicts, lambda x: display_bettable(x))) >= 0:
                 input_outcome(attr_dicts[selection])

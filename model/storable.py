@@ -7,6 +7,8 @@ from importlib.metadata import requires
 
 STORABLE_ORDER_ASC = 'ASC'
 STORABLE_ORDER_DESC = 'DESC'
+STORABLE_ENTITY_ATTR_NAME = '_table_'
+STORABLE_TABLE_COLUMN_SEPARATOR = '°'
 
 def dbfy(name : str):
     if name:
@@ -19,6 +21,9 @@ def dbfy(name : str):
 
 def dbfy_value(name : str):
     return name.strip('_') if name else None
+
+def joined_column(storable_cls, attribute_name = 'id'):
+    return storable_cls._table_ + STORABLE_TABLE_COLUMN_SEPARATOR + attribute_name
 
 class DbFieldType(ABC):
     pass
@@ -56,7 +61,7 @@ class Field:
         return f"{self._value}"
 
     def __repr__(self) -> str:
-        return f"{type(self)} {self._name}:{self._type}={self._value}"
+        return f"{self._type}={self._value}" # f"{type(self)} {self._name}:{self._type}={self._value}"
 
 class UniqueField(Field):
     def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
@@ -97,7 +102,8 @@ class Referenceable(Field):
     def __str__(self):
         return str(self._referred if self._referred else self.id)
 
-STORABLE_ENTITY_ATTR_NAME = '_table_'
+    def __repr__(self) -> str:
+        return f"{self._referred}={self.id}" # f"{type(self)} {self._name}:{self._type}={self._value}"
 
 class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
@@ -165,7 +171,7 @@ class Storable(ABC, metaclass=StorableMeta):
                     if isinstance(v, Referenceable):
                         instance_class._referenceables.append(k)
 
-            print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Referenceables: {instance_class._referenceables}\n   Fields: {instance_class._fields}")
+            #print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Referenceables: {instance_class._referenceables}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
     def __init__(self, store_mgr, id=None):
@@ -229,18 +235,33 @@ class Storable(ABC, metaclass=StorableMeta):
                         # load related entities too
                         joins.append((joined_class, dbfy(refName), None)) # JOIN table refName ON refName.id = refName_id
                     if joined_class._fields: # May be false if no instance of the joined_class has been created yet
-                        join_columns.extend([f"{dbfy(refName)}.{dbfy(name)} AS {dbfy(refName)}_{dbfy(name)}" for name in joined_class._fields])
+                        join_columns.extend([f"{dbfy(refName)}.{dbfy(name)} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name)}" for name in joined_class._fields])
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
         result = self.store_mgr.load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 
-    def fill(self, attr) :
+    def fill(self, attr) -> Storable:
         # fill-in the field attributes
+        print(f"...... Filling new {type(self)} from {attr}")
         self._attr = attr # keep the data source
         for field_name in self._fields:
-            field = self.__getattribute__(field_name)
-            column_name = field.dbfy_name(field_name)
-            field._value = attr.get(column_name, attr.get(field_name))
+            if field_name in self._referenceables:
+                # if attr contains referenceable_XXX data, let's create an object for it
+                referenceable = self.__getattribute__(field_name)
+                entityClass = referenceable._storable_cls
+                prefix = entityClass._table_ + STORABLE_TABLE_COLUMN_SEPARATOR
+                # Fill the object with attributes not related to the current entity
+                if reduce(lambda a,x: a or x.startswith(prefix), attr.keys(), False):
+                    # There is some entity data todo what about only the id available?
+                    filtered_attr = {k.split(prefix)[-1] : v for k,v in attr.items() if STORABLE_TABLE_COLUMN_SEPARATOR in k}
+                    referenced_entity = entityClass(self.store_mgr)
+                    referenceable._referred = referenced_entity.fill(filtered_attr)
+                    #self.__setattr__(field_name, referenceable)
+            else:
+                field = self.__getattribute__(field_name)
+                column_name = field.dbfy_name(field_name)
+                field._value = attr.get(column_name, attr.get(field_name))
+        print(self.show())
         return self
 
     def load(self, condition = ''):
@@ -289,3 +310,7 @@ class Storable(ABC, metaclass=StorableMeta):
         else:
             self.store_mgr.get_store().update(self.store_mgr.class_entity(type(self)), self.id, col_list, col_values)
         return self.id
+
+    def show(self) -> str:
+        field_values = {f_name: f_value for f_name, f_value in map(lambda field_name: (field_name, self.__getattribute__(field_name)),self._fields)}
+        return f"############# {type(self)} : {field_values}"
