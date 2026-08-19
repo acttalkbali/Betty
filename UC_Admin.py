@@ -98,8 +98,8 @@ def tournament_selection(states:list[str]=None) -> int:
         else:
             selection = 0
         tr = tournaments[selection]
-        UiAdminContext().tournament_selected_name = tr._name
-        UiAdminContext().tournament_selected_id = tr._id
+        UiAdminContext().tournament_selected_name = tr._name._value
+        UiAdminContext().tournament_selected_id = tr._id._value
         UiAdminContext().tournament_selected = Tournament(Betty(), name=tr._name, id=tr._id)
         print(f"Selected tournament : {UiAdminContext().tournament_selected_id}")
         return selection
@@ -289,8 +289,9 @@ def input_bettable_outcome():
                                    f" JOIN {Phase._table_} p ON b.phase_id = p.id AND p.tournament_id={UiAdminContext().tournament_selected_id}"
                                    f" WHERE b.start_dt < '{datetime.datetime.now()}' AND b.outcome IS NULL"
                                    f" ORDER BY b.start_dt ASC")
-        # todo add tournament_name to the attr_dict
         if attr_dicts:
+            for attr_dict in attr_dicts:
+                attr_dict.update({'tournament_name': UiAdminContext().tournament_selected_name})
             while (selection:=input_selection(attr_dicts, lambda x: display_bettable(x))) >= 0:
                 input_outcome(attr_dicts[selection])
                 compute_ranking()

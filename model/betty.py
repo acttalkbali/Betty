@@ -211,8 +211,8 @@ class Betty:
         else:
             return None
 
-    @classmethod
-    def save(cls, entity) -> int | None:
+    #@classmethod
+    #def save(cls, entity) -> int | None:
         """
         Inserts or update the supplied model entity in the DB.
         Insertion/update depends on whether key attribute(s) of the entity aren't fully filled (=> insertion) or not (=> update)
@@ -220,7 +220,7 @@ class Betty:
         :param entity: a model entity
         :return: the id of the newly stored entity or else None
         """
-        return entity.save()
+    #    return entity.save()
 
 
 if __name__ == "__main__":
