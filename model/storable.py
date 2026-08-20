@@ -96,7 +96,10 @@ class Referenceable(Field):
         self._id._value = value
 
     def dbfy_name(self, attr_name=None):
-        return f"{super().dbfy_name(attr_name)}_id"
+        '''
+        returns the default column_name as <foreignTable>_id
+        '''
+        return f"{super().dbfy_name(self._name or attr_name)}_id"
 
     def __str__(self):
         return str(self._referred if self._referred else self.id)
@@ -202,12 +205,13 @@ class Storable(ABC, metaclass=StorableMeta):
 
         # Is a unique key filled in? If yes use it
         for uniqueFieldName in self._uniqueFields:
-            field = self.__getattribute__(uniqueFieldName)
-            if field is not None:
+            # For each Unique fields, we add the '=' condition if the field has a value
+            if (field:=self.__getattribute__(uniqueFieldName)) is not None:
                 if field._value is not None:
                     conditions.append(self.store.wrap_condition(field.col_name() or dbfy(uniqueFieldName), '=', field._value))
 
         if not conditions:
+            # For Unique Constraints, spanning several columns/fields, we add the condition if all participating fields have values
             for uniqueConstraint in self._uniqueConstraints:
                 for field_name in self.__getattribute__(uniqueConstraint)._field_names:
                     field = self.__getattribute__(field_name)
@@ -224,6 +228,8 @@ class Storable(ABC, metaclass=StorableMeta):
                 if conditions: # a unique constraint condition could be built
                     break
 
+        #todo? add an '=' condition for non-unique pre-filled fields?
+
         joins = []
         join_columns = []
         if consider_joins:
@@ -232,14 +238,17 @@ class Storable(ABC, metaclass=StorableMeta):
                 referenceable = self.__getattribute__(refName)
                 if referenceable is not None:
                     joined_class = referenceable._storable_cls
+                    col_name = referenceable.dbfy_name()
                     if referenceable._id:
-                        joins.append((joined_class, dbfy(refName), referenceable._id)) # JOIN table refName ON refName.id = id-value
+                        joins.append((joined_class, col_name, referenceable._id)) # JOIN table refName ON refName.id = id-value
                     else:
                         # load related entities too
-                        joins.append((joined_class, dbfy(refName), None)) # JOIN table refName ON refName.id = refName_id
-                    if joined_class._fields: # May be false if no instance of the joined_class has been created yet
-                        join_columns.extend([f"{dbfy(refName)}.{dbfy(name)} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name)}" for name in joined_class._fields])
+                        joins.append((joined_class, col_name, None)) # JOIN table refName ON refName.id = refName_id
+                    if joined_class._fields: # !! May be false if no instance of the joined_class has been created yet
+                        join_columns.extend([f"{col_name}.{dbfy(name)} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name)}"
+                                             for name in joined_class._fields])
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
+
         result = self.store_mgr.load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 

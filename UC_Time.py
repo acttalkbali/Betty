@@ -17,7 +17,7 @@ UC A bettable starts:
 Five minutes before the start of a bettable, its state is set to RUNNING 
 """
 def display_bettable(attr_dict):
-    ret = f"{attr_dict['tournament_name']}, {attr_dict['phase_name']} : {attr_dict['start_dt']} : {attr_dict['a_team_name']} - {attr_dict['b_team_name']}"
+    ret = f"{attr_dict.get('tournament_name', '')}, {attr_dict['phase_name']} : {attr_dict['start_dt']} : {attr_dict['a_team_name']} - {attr_dict['b_team_name']}"
     outcome= attr_dict['outcome']
     if outcome:
         if outcome == BETTABLE_OUTCOME_DRAW:
