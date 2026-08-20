@@ -18,7 +18,8 @@ Five minutes before the start of a bettable, its state is set to RUNNING
 """
 def display_bettable(attr_dict):
     ret = f"{attr_dict['tournament_name']}, {attr_dict['phase_name']} : {attr_dict['start_dt']} : {attr_dict['a_team_name']} - {attr_dict['b_team_name']}"
-    if outcome:=attr_dict['outcome']:
+    outcome= attr_dict['outcome']
+    if outcome:
         if outcome == BETTABLE_OUTCOME_DRAW:
             ret += "  => Draw"
         else:
@@ -27,7 +28,7 @@ def display_bettable(attr_dict):
     return ret
 
 def input_outcome(attr_dict):
-    bettable = Bettable(Betty(), id=attr_dict['id'])
+    bettable = Bettable(id=attr_dict['id'])
     bettable.load()
     outcome_selected = input_selection([f"{attr_dict['a_team_name']} wins", f"{attr_dict['b_team_name']} wins", "draw"])
     if outcome_selected >= 0:
@@ -53,7 +54,10 @@ if __name__ == '__main__':
                                f" WHERE b.start_dt < '{datetime.now()}' AND b.outcome IS NULL"
                                f" ORDER BY b.start_dt ASC")
     if attr_dicts:
-        while (selection:=input_selection(attr_dicts, lambda x: display_bettable(x))) >= 0:
+        while True:
+            selection = input_selection(attr_dicts, lambda x: display_bettable(x))
+            if selection < 0:
+                break
             input_outcome(attr_dicts[selection])
     else:
         info("There is no running bettable needing to be closed")

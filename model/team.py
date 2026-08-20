@@ -4,7 +4,7 @@ from .storable import Storable, Field, DbText, UniqueField
 class Team(Storable):
     _table_ = "team"
 
-    def __init__(self, store, name:str|None=None, id:int|None=None):
+    def __init__(self, store=None, name:str|None=None, id:int|None=None):
         super().__init__(store, id)
         self._name = UniqueField(name, DbText)
         #self._tournament = tournament

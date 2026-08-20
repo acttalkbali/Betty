@@ -79,7 +79,7 @@ class SqlStore:
         success = True
         cmds = ' '.join(commands)
         commands = [cmds]
-        self.debug(f"IN run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        self.debug(f"IN run_commands connection is {'CLOSED' if self._conn.closed else 'OPEN'}")
         if self._conn.closed:
             self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         command = ''
@@ -90,12 +90,12 @@ class SqlStore:
                         cur.execute(command)
                     conn.commit()
                 self.debug(f"Succeeded: {command}", force_debug)
-                self.debug(f"Post commit run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+                self.debug(f"Post commit run_commands connection is {'CLOSED' if self._conn.closed else 'OPEN'}")
         except Exception as e:
             print(f"Failed: {command}: {e}")
             success = False
 
-        self.debug(f"OUT run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        self.debug(f"OUT run_commands connection is {'CLOSED' if self._conn.closed else 'OPEN'}")
         return success
 
     def insert(self, table:str, attr_list:list[str], attr_values:list[str], returning:str='id') -> int|None:

@@ -1,9 +1,8 @@
 import copy
 import re
 from abc import ABC, abstractmethod, ABCMeta
-from email.policy import default
 from functools import reduce
-from importlib.metadata import requires
+from model.betty import Betty
 
 STORABLE_ORDER_ASC = 'ASC'
 STORABLE_ORDER_DESC = 'DESC'
@@ -72,7 +71,7 @@ class UniqueConstraint:
         self._field_names = field_names
 
 class Referenceable(Field):
-    def __init__(self, storable_cls, referred: Storable|int, db_type=DbInt, name=None, required=True, dflt=None):
+    def __init__(self, storable_cls, referred: "Storable"|int, db_type=DbInt, name=None, required=True, dflt=None):
         self._storable_cls = storable_cls
         if isinstance(referred, Storable):
             super().__init__(referred.id, db_type, name, required, dflt)
@@ -109,7 +108,8 @@ class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
         #print(f"Adding field attributes to class {name}")
         # Define class attributes
-        if entity_name:=attrs.get(STORABLE_ENTITY_ATTR_NAME):
+        entity_name = attrs.get(STORABLE_ENTITY_ATTR_NAME)
+        if entity_name:
             #print(f"Adding class {name} : {entity_name} to entities mapping")
             Storable.entities[name] = entity_name
         attrs['_class_initialized'] = False
@@ -176,7 +176,7 @@ class Storable(ABC, metaclass=StorableMeta):
 
     def __init__(self, store_mgr, id=None):
         super().__init__()
-        self.store_mgr = store_mgr
+        self.store_mgr = store_mgr or Betty()
         self._id = UniqueField(id, required=False)
 
     @property
@@ -202,14 +202,16 @@ class Storable(ABC, metaclass=StorableMeta):
 
         # Is a unique key filled in? If yes use it
         for uniqueFieldName in self._uniqueFields:
-            if (field:=self.__getattribute__(uniqueFieldName)) is not None:
+            field = self.__getattribute__(uniqueFieldName)
+            if field is not None:
                 if field._value is not None:
                     conditions.append(self.store.wrap_condition(field.col_name() or dbfy(uniqueFieldName), '=', field._value))
 
         if not conditions:
             for uniqueConstraint in self._uniqueConstraints:
                 for field_name in self.__getattribute__(uniqueConstraint)._field_names:
-                    if (field:=self.__getattribute__(field_name)) is not None:
+                    field = self.__getattribute__(field_name)
+                    if field is not None:
                         try: # assume field instance
                             if field._value:
                                 conditions.append(self.store.wrap_condition(field._name or field.dbfy_name(field_name), '=', field._value))
@@ -227,7 +229,8 @@ class Storable(ABC, metaclass=StorableMeta):
         if consider_joins:
             # check for pre-filled foreign-keys (the '1 container' in a 1-N relationships)
             for refName in self._referenceables:
-                if (referenceable := self.__getattribute__(refName)) is not None:
+                referenceable = self.__getattribute__(refName)
+                if referenceable is not None:
                     joined_class = referenceable._storable_cls
                     if referenceable._id:
                         joins.append((joined_class, dbfy(refName), referenceable._id)) # JOIN table refName ON refName.id = id-value
@@ -240,7 +243,7 @@ class Storable(ABC, metaclass=StorableMeta):
         result = self.store_mgr.load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 
-    def fill(self, attr) -> Storable:
+    def fill(self, attr) -> "Storable":
         # fill-in the field attributes
         print(f"...... Filling new {type(self)} from {attr}")
         self._attr = attr # keep the data source

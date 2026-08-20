@@ -53,7 +53,7 @@ def register() -> Bettor|None:
     pwd = input("Enter password: ")
     # Todo check email address
     # Todo hide password
-    bettor = Bettor(Betty(), name, pwd, email, nickname)
+    bettor = Bettor(name, pwd, email, nickname)
     if not bettor.save:
         print("Sorry, registration failed") # todo explain why
         return None
@@ -71,7 +71,7 @@ def login(bettor_name='', bettor_pwd='') -> Bettor|None:
     """
     bettor_name = bettor_name or input("Your name: ")
     bettor_pwd = bettor_pwd or input("Password: ")
-    bettor = Bettor(Betty(), name=bettor_name)
+    bettor = Bettor(name=bettor_name)
     result = bettor.load()
     if len(result)==1:
         # bettor filled-in successfully
@@ -117,8 +117,8 @@ def tournament_registration(bettor:Bettor)->None:
         else:
             selection = ui.input_selection(attr_dicts, lambda attr_dict: attr_dict['name'])
             if selection >= 0:
-                tournament = Tournament(Betty(),id=attr_dicts[selection]['id'])
-                participation = Participation(Betty(), bettor, tournament, credit=attr_dicts[selection]['sheep_credit'])
+                tournament = Tournament(id=attr_dicts[selection]['id'])
+                participation = Participation(bettor, tournament, credit=attr_dicts[selection]['sheep_credit'])
                 participation.save()
                 UiBettorContext().tournament_selected_name = attr_dicts[selection]['name']
                 UiBettorContext().tournament_selected_id = attr_dicts[selection]['id']
@@ -147,7 +147,7 @@ def tournament_selection(bettor:Bettor, states:list[str]=None) -> int:
                 selection = 0
             UiBettorContext().tournament_selected_name = attr_dicts[selection]['name']
             UiBettorContext().tournament_selected_id = attr_dicts[selection]['id']
-            UiBettorContext().tournament_selected = Tournament(Betty(), name=attr_dicts[selection]['name'], id=attr_dicts[selection]['id'])
+            UiBettorContext().tournament_selected = Tournament(name=attr_dicts[selection]['name'], id=attr_dicts[selection]['id'])
             print(f"Selected tournament : {UiBettorContext().tournament_selected_id}")
             UiBettorContext().participation_id = attr_dicts[selection]['participation_id']
             UiBettorContext().credit = attr_dicts[selection]['credit']
@@ -185,7 +185,7 @@ def buy_sheeps(bettor:Bettor):
             livestock = {attr_dict['name']:attr_dict['quantity'] for attr_dict in lvs_attr_dicts }
             while True:
                 choices = []
-                participation = Participation(Betty(), id=UiBettorContext().participation_id)
+                participation = Participation(id=UiBettorContext().participation_id)
                 participation.load()
                 credit = participation._credit._value #UiBettorContext().credit
                 ui.info(f"Your credit: {credit}")
@@ -201,7 +201,7 @@ def buy_sheeps(bettor:Bettor):
                     n = ui.input_int(f"Number of sheeps to buy (max {max_sheeps} according to your current credit ({credit})", 0, max_sheeps)
                     # Update credit accordingly
                     UiBettorContext().credit -= n * int(attr_dicts[selection]['sheep_value'])
-                    sheep_livestock = SheepLivestock(Betty(), sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=n)
+                    sheep_livestock = SheepLivestock(sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=n)
                     sheep_livestock.save()
                     livestock[attr_dicts[selection]['name']] = n
                     participation._credit._value = UiBettorContext().credit
@@ -210,7 +210,7 @@ def buy_sheeps(bettor:Bettor):
                     break
             # todo update credit along the livestock update
             #if selection >= 0:
-            #    participation = Participation(Betty(), id=UiBettorContext().participation_id)
+            #    participation = Participation(id=UiBettorContext().participation_id)
             #    participation.load()
             #    participation.credit = UiBettorContext().credit
             #    participation.save()
@@ -237,12 +237,12 @@ def bet(bettor:Bettor):
             choices = []
             for attr_dict in attr_dicts:
                 #print(attr_dicts)
-                team_a = Team(Betty(), id=attr_dict['a_team_id'])
-                team_b = Team(Betty(), id=attr_dict['b_team_id'])
+                team_a = Team(id=attr_dict['a_team_id'])
+                team_b = Team(id=attr_dict['b_team_id'])
                 team_a.load()
                 team_b.load()
-                bettable = Bettable(Betty(), attr_dict['phase_id'], team_a, team_b, attr_dict['start_dt'], id=attr_dict['id'])
-                bet = Bet(Betty(), bettor, bettable)
+                bettable = Bettable(attr_dict['phase_id'], team_a, team_b, attr_dict['start_dt'], id=attr_dict['id'])
+                bet = Bet(bettor, bettable)
                 result = bet.load() # load the bet if it already exists
                 choices.append((bettable,bet))
                 #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")
@@ -288,8 +288,8 @@ def tournament_status():
                                        f" FULL JOIN {Bet._table_} bt ON bt.bettable_id=b.id"
                                        f" ORDER BY b.start_dt ASC")
             for attr_dict in attr_dicts:
-                team_a = Team(Betty(), id=attr_dict['a_team_id'])
-                team_b = Team(Betty(), id=attr_dict['b_team_id'])
+                team_a = Team(id=attr_dict['a_team_id'])
+                team_b = Team(id=attr_dict['b_team_id'])
                 team_a.load()
                 team_b.load()
                 bettable_str = f"{attr_dict['start_dt']} : {team_a} - {team_b}"

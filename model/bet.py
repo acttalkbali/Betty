@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 class Bet(Storable):
 
-    def __init__(self, store, bettor: Bettor, bettable: Bettable, prediction: int|None=None, score:int|None=None):
+    def __init__(self, store=None, bettor: Bettor|int=None, bettable: Bettable|int=None, prediction: int|None=None, score:int|None=None):
         super().__init__(store)
         self._name = f"{bettor}:{bettable}={prediction}"
         self._bettor = Referenceable(Bettor, bettor)
