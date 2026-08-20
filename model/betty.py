@@ -197,7 +197,7 @@ class Betty:
         """
         loads all records for the model entity matching the specified condition from the DB
         :param pycls: The python model class
-        :param joins: a list of pairs of the form (table, id-value or foreign-key-column)
+        :param joins: a list of triplets of the form (table, foreign-key-column, key-column)
         :param condition: the condition, expressed as a DB-specific expression, that the entities must meet to be loaded.
         :return:
         """
@@ -205,7 +205,7 @@ class Betty:
         if table:
             table_joins = ' '.join([" JOIN {} {} ON {}.id={}".format(
                                     joined._table_, selector, selector, (value and f"'{value}'") or f"{selector}_id")
-                                for joined,selector,value in joins])
+                                for joined, selector, value in joins])
             query = f"SELECT {table}.*{(', '+(', '.join(join_columns))) if join_columns else ''}" + f" FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
             return Betty().get_store().run_query(query)
         else:

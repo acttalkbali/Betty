@@ -44,7 +44,7 @@ class Field:
     def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
         self._value = value
         self._type = db_type
-        self._name = dbfy(name)
+        self._name = dbfy(name) if name else None
         self._required = required
         self._dflt = dflt
 
@@ -100,7 +100,7 @@ class Referenceable(Field):
         '''
         returns the default column_name as <foreignTable>_id
         '''
-        return f"{super().dbfy_name(attr_name)}_id"
+        return f"{super().dbfy_name(self._name or attr_name)}_id"
 
     def __str__(self):
         return str(self._referred if self._referred else self.id)
@@ -236,13 +236,15 @@ class Storable(ABC, metaclass=StorableMeta):
             for refName in self._referenceables:
                 if (referenceable := self.__getattribute__(refName)) is not None:
                     joined_class = referenceable._storable_cls
+                    col_name = referenceable.dbfy_name()
                     if referenceable._id:
-                        joins.append((joined_class, dbfy(refName), referenceable._id)) # JOIN table refName ON refName.id = id-value
+                        joins.append((joined_class, col_name, referenceable._id)) # JOIN table refName ON refName.id = id-value
                     else:
                         # load related entities too
-                        joins.append((joined_class, dbfy(refName), None)) # JOIN table refName ON refName.id = refName_id
+                        joins.append((joined_class, col_name, None)) # JOIN table refName ON refName.id = refName_id
                     if joined_class._fields: # !! May be false if no instance of the joined_class has been created yet
-                        join_columns.extend([f"{dbfy(refName)}.{dbfy(name)} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name)}" for name in joined_class._fields])
+                        join_columns.extend([f"{col_name}.{dbfy(name)} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name)}"
+                                             for name in joined_class._fields])
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
 
         result = self.store_mgr.load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
