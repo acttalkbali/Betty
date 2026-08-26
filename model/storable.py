@@ -172,6 +172,7 @@ class Storable(ABC, metaclass=StorableMeta):
                 instance_class._referenceables = []
                 for k, v in instance.__dict__.items():
                     if isinstance(v, Referenceable):
+                        v._name = k
                         instance_class._referenceables.append(k)
 
             #print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Referenceables: {instance_class._referenceables}\n   Fields: {instance_class._fields}")
@@ -217,7 +218,7 @@ class Storable(ABC, metaclass=StorableMeta):
                     if (field:=self.__getattribute__(field_name)) is not None:
                         try: # assume field instance
                             if field._value:
-                                conditions.append(self.store.wrap_condition(field._name or field.dbfy_name(field_name), '=', field._value))
+                                conditions.append(self.store.wrap_condition(field.dbfy_name(field_name) or field._name, '=', field._value))
                         except AttributeError:
                             if field:
                                 conditions.append(self.store.wrap_condition(field_name or dbfy(field_name), '=', field))
@@ -236,14 +237,14 @@ class Storable(ABC, metaclass=StorableMeta):
             for refName in self._referenceables:
                 if (referenceable := self.__getattribute__(refName)) is not None:
                     joined_class = referenceable._storable_cls
-                    col_name = referenceable.dbfy_name()
+                    src_col_name = dbfy(refName)
                     if referenceable._id:
-                        joins.append((joined_class, col_name, referenceable._id)) # JOIN table refName ON refName.id = id-value
+                        joins.append((joined_class, src_col_name, referenceable._id)) # JOIN table refName ON refName.id = id-value
                     else:
                         # load related entities too
-                        joins.append((joined_class, col_name, None)) # JOIN table refName ON refName.id = refName_id
+                        joins.append((joined_class, src_col_name, None)) # JOIN table refName ON refName.id = refName_id
                     if joined_class._fields: # !! May be false if no instance of the joined_class has been created yet
-                        join_columns.extend([f"{col_name}.{dbfy(name)} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name)}"
+                        join_columns.extend([f"{src_col_name}.{dbfy(name) + ('_id' if name in joined_class._referenceables else '')} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name) + ('_id' if name in joined_class._referenceables else '')}"
                                              for name in joined_class._fields])
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
 
@@ -271,7 +272,7 @@ class Storable(ABC, metaclass=StorableMeta):
                 field = self.__getattribute__(field_name)
                 column_name = field.dbfy_name(field_name)
                 field._value = attr.get(column_name, attr.get(field_name))
-        print(self.show())
+        #print(self.show())
         return self
 
     def load(self, condition = ''):
@@ -310,7 +311,7 @@ class Storable(ABC, metaclass=StorableMeta):
                         field._value = field._dflt
 
             if field._value is not None:
-                col_list.append(field._name or field.dbfy_name(attr_name))
+                col_list.append(field.dbfy_name(attr_name) or field._name)
                 col_values.append(field.dbfy_value())
 
         # If _id is None, this is considered an insertion, else an update

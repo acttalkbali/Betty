@@ -5,7 +5,7 @@ import os
 class SqlStore:
 
     _instance = None
-    _debug = True # Set to True to have debug information in the console
+    _debug = False # Set to True to have debug information in the console
 
     DEFAULT_DB_CONFIG = {
         #"host": os.getenv("DB_HOST"),
@@ -100,7 +100,7 @@ class SqlStore:
 
     def insert(self, table:str, attr_list:list[str], attr_values:list[str], returning:str='id') -> int|None:
         id = None
-        cmd = f"INSERT INTO {table} ({', '.join(attr_list)}) VALUES ({', '.join(attr_values)}) RETURNING {returning};"
+        cmd = f"INSERT INTO {table} ({', '.join(attr_list)}) VALUES ({', '.join(attr_values)}) RETURNING {id};"
         if self._conn.closed:
             self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         try:
