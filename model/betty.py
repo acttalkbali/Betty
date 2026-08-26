@@ -33,18 +33,10 @@ class Betty:
 
     @classmethod
     def references_by_id(cls, pyclass, prefix='', nullable=False) -> str:
-        entity = cls.class_entity(pyclass) # entity = Storable.entities.get(pyclass) #cls.class_entity(pyclass)
+        entity = pyclass._table_
         if prefix:
             prefix += '_'
         return f"{prefix}{entity}_id {'INT' + (' NOT NULL' if not nullable else '')} REFERENCES {entity}(id)"
-
-    @classmethod
-    def class_entity(cls, pycls) -> str:
-        """
-        :param pycls: The python model class
-        :return: The store entity for the supplied python model class
-        """
-        return pycls._table_
 
 
     @classmethod
@@ -60,7 +52,7 @@ class Betty:
             #CREATE TYPE TEMPORAL_STATE AS ENUM('open','running','closed');
             #""",
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Tournament)} (
+            CREATE TABLE IF NOT EXISTS {Tournament._table_} (
                  id SERIAL PRIMARY KEY,
                  name TEXT NOT NULL UNIQUE,
                  state TEXT, 
@@ -70,7 +62,7 @@ class Betty:
                  );
             """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Phase)} (
+            CREATE TABLE IF NOT EXISTS {Phase._table_} (
                  id SERIAL PRIMARY KEY,
                  {cls.references_by_id(Tournament)},
                  name TEXT,
@@ -79,13 +71,13 @@ class Betty:
                  );
             """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Team)} (
+            CREATE TABLE IF NOT EXISTS {Team._table_} (
                  id SERIAL PRIMARY KEY,
                  name TEXT
                  );
             """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(SheepValue)} (
+            CREATE TABLE IF NOT EXISTS {SheepValue._table_} (
                  id SERIAL PRIMARY KEY,
                  {cls.references_by_id(Tournament)},
                  {cls.references_by_id(Team)},
@@ -93,7 +85,7 @@ class Betty:
                  );
             """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Bettable)} (
+            CREATE TABLE IF NOT EXISTS {Bettable._table_} (
                  id SERIAL PRIMARY KEY,
                  {cls.references_by_id(Phase)},
                  {cls.references_by_id(Team, 'a')},
@@ -104,13 +96,13 @@ class Betty:
                  );
             """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Bteam)} (
+            CREATE TABLE IF NOT EXISTS {Bteam._table_} (
                  id SERIAL PRIMARY KEY,
                  name TEXT UNIQUE NOT NULL
                  );
             """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Bettor)} (
+            CREATE TABLE IF NOT EXISTS {Bettor._table_} (
                  id SERIAL PRIMARY KEY,
                  name TEXT NOT NULL,
                  nickname TEXT UNIQUE,
@@ -120,7 +112,7 @@ class Betty:
                  );
             """,
             f"""
-              CREATE TABLE IF NOT EXISTS {cls.class_entity(SheepLivestock)} (
+              CREATE TABLE IF NOT EXISTS {SheepLivestock._table_} (
                    id SERIAL PRIMARY KEY,
                    {cls.references_by_id(Bettor)},
                    {cls.references_by_id(SheepValue)},
@@ -128,7 +120,7 @@ class Betty:
                    );
               """,
             f"""
-             CREATE TABLE IF NOT EXISTS {cls.class_entity(Participation)} (
+             CREATE TABLE IF NOT EXISTS {Participation._table_} (
                   id SERIAL PRIMARY KEY,
                   {cls.references_by_id(Tournament)},
                   {cls.references_by_id(Bettor)},
@@ -137,17 +129,17 @@ class Betty:
                   );
              """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Bet)} (
+            CREATE TABLE IF NOT EXISTS {Bet._table_} (
                  id SERIAL PRIMARY KEY,
                  {cls.references_by_id(Bettable)},
                  {cls.references_by_id(Bettor)},
                  prediction TEXT,
                  score FLOAT,
-                 CONSTRAINT UC_Bet UNIQUE ({cls.class_entity(Bettable)}_id,{cls.class_entity(Bettor)}_id)
+                 CONSTRAINT UC_Bet UNIQUE ({Bettable._table_}_id,{Bettor._table_}_id)
                  );
             """,
             f"""
-            CREATE TABLE IF NOT EXISTS {cls.class_entity(Ranking)} (
+            CREATE TABLE IF NOT EXISTS {Ranking._table_} (
                  id SERIAL PRIMARY KEY,
                  {cls.references_by_id(Tournament)},
                  {cls.references_by_id(Bettor)},
@@ -181,46 +173,6 @@ class Betty:
         store = cls.get_store()
         if store.run_commands(commands, force_debug=True) == True:
             if cls._debug: print('DB TABLES DROPPED')
-
-    @classmethod
-    def query(cls, command) -> list[dict]:
-        """
-        Execute the supplied query command on the DB
-        :param command:
-        :return:
-        """
-        if cls._debug: print(command)
-        return Betty().get_store().run_query(command)
-
-    @classmethod
-    def load(cls, pycls, joins, join_columns:list, condition: str|None, ordering:str|None): # todo hide SQL-specifics in sql_store
-        """
-        loads all records for the model entity matching the specified condition from the DB
-        :param pycls: The python model class
-        :param joins: a list of triplets of the form (table, foreign-key-column, key-column)
-        :param condition: the condition, expressed as a DB-specific expression, that the entities must meet to be loaded.
-        :return:
-        """
-        table = Betty().class_entity(pycls)
-        if table:
-            table_joins = ' '.join([" JOIN {} {} ON {}.id={}".format(
-                                    joined._table_, selector, selector, (value and f"'{value}'") or f"{selector}_id")
-                                for joined, selector, value in joins])
-            query = f"SELECT {table}.*{(', '+(', '.join(join_columns))) if join_columns else ''}" + f" FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
-            return Betty().get_store().run_query(query)
-        else:
-            return None
-
-    #@classmethod
-    #def save(cls, entity) -> int | None:
-        """
-        Inserts or update the supplied model entity in the DB.
-        Insertion/update depends on whether key attribute(s) of the entity aren't fully filled (=> insertion) or not (=> update)
-
-        :param entity: a model entity
-        :return: the id of the newly stored entity or else None
-        """
-    #    return entity.save()
 
 
 if __name__ == "__main__":

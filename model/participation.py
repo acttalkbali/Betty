@@ -10,7 +10,7 @@ TOURNAMENT_STATE_CLOSED = "CLOSED"
 
 class Participation(Storable):
 
-    def __init__(self, store, bettor:Bettor=None, tournament:Tournament=None, score=0, credit=0, id=None):
+    def __init__(self, store=None, bettor:Bettor=None, tournament:Tournament=None, score=0, credit=0, id=None):
         super().__init__(store, id)
         self._bettor = Referenceable(Bettor, bettor)
         self._tournament = Referenceable(Tournament, tournament)

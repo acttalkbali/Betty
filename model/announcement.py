@@ -1,5 +1,5 @@
 from .storable import Storable
 
 class Announcement(Storable):
-    _table_name = 'announcement'
+    _table_ = 'announcement'
     pass

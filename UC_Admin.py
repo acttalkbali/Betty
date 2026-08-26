@@ -1,18 +1,19 @@
 import datetime
 
+from model.sql_store import SqlStore
 from UC_Bettor import tournament_status, calculate_score, E_PREDICTIONS, E_OUTCOMES
 from UC_Time import input_outcome, display_bettable
 from model import tournament
 from model.bet import Bet
 from model.bettable import Bettable
 from model.bettor import Bettor
-from model.betty import Betty
 from model.participation import Participation
 from model.phase import Phase
 from model.ranking import Ranking
 from model.storable import STORABLE_ORDER_DESC, joined_column
 from model.team import Team
 from model.tournament import Tournament
+from model.queries import query_tournament_bettables, query_tournament_bettables_with_teams
 from ui.console_ui import input_selection, info
 
 
@@ -88,7 +89,7 @@ def tournament_selection(states:list[str]=None) -> int:
     """
 
     states_condition = f" tr.state IN ({str(states)[1:-1]})" if states else 'TRUE'
-    tournaments,_ = Tournament(Betty()).load_all(states_condition)
+    tournaments,_ = Tournament().load_all(states_condition)
     #attr_dicts = Betty().query(f"SELECT tr.id, tr.name, tr.start_dt FROM {Tournament._table_} tr WHERE {states_condition}")
     if len(tournaments)==0:
         info("No tournament available")
@@ -100,7 +101,7 @@ def tournament_selection(states:list[str]=None) -> int:
         tr = tournaments[selection]
         UiAdminContext().tournament_selected_name = tr._name._value
         UiAdminContext().tournament_selected_id = tr._id._value
-        UiAdminContext().tournament_selected = Tournament(Betty(), name=tr._name, id=tr._id)
+        UiAdminContext().tournament_selected = Tournament(name=tr._name, id=tr._id)
         print(f"Selected tournament : {UiAdminContext().tournament_selected_id}")
         return selection
     return -1
@@ -132,39 +133,40 @@ def betty_status():
     Existing tournaments are listed together with their information.
     Namely status, start date, end date, #participants and for each phase: its status, start date, %age completion, #bettables, #bets.
     """
-    tournaments,tr_attr_dicts = Tournament(Betty()).load_all(ordering=[('_start_dt', STORABLE_ORDER_DESC)])
+    tournaments,tr_attr_dicts = Tournament().load_all(ordering=[('_start_dt', STORABLE_ORDER_DESC)])
 
     for tr_attr_dict in tr_attr_dicts:
         print(f"Tournament: {tr_attr_dict['id']} {tr_attr_dict['name']} [{tr_attr_dict['start_dt']} - {tr_attr_dict['end_dt']}] {tr_attr_dict['state']}")
-        bettable_attr_dicts = Betty().query(
-            f"SELECT ba.id as bettable_id, ba.start_dt, t1.name as t1_name, t2.name as t2_name, ba.outcome, ba.state, ph.id as phase_id, ph.name as phase_name, ph.state as phase_state, ph.scoring "
-            f"FROM {Bettable._table_} ba "
-            f"JOIN {Phase._table_} ph ON ba.phase_id = ph.id "
-            f"JOIN {Team._table_} t1 ON ba.a_team_id = t1.id "
-            f"JOIN {Team._table_} t2 ON ba.b_team_id = t2.id "
-            f"WHERE ph.tournament_id = {tr_attr_dict['id']} "
-            f"ORDER BY ba.start_dt ASC")
+        #bettable_attr_dicts = Betty().query(
+        #    f"SELECT ba.id as bettable_id, ba.start_dt, t1.name as t1_name, t2.name as t2_name, ba.outcome, ba.state, ph.id as phase_id, ph.name as phase_name, ph.state as phase_state, ph.scoring "
+        #    f"FROM {Bettable._table_} ba "
+        #    f"JOIN {Phase._table_} ph ON ba.phase_id = ph.id "
+        #    f"JOIN {Team._table_} t1 ON ba.a_team_id = t1.id "
+        #    f"JOIN {Team._table_} t2 ON ba.b_team_id = t2.id "
+        #    f"WHERE ph.tournament_id = {tr_attr_dict['id']} "
+        #    f"ORDER BY ba.start_dt ASC")
+        bettable_attr_dicts = query_tournament_bettables_with_teams(tr_attr_dict['id'])
         prv_phase_name = None
         for bettable_attr_dict in bettable_attr_dicts:
-            if (phase_name:=bettable_attr_dict['phase_name']) != prv_phase_name:
+            if (phase_name:=bettable_attr_dict['phase°name']) != prv_phase_name:
                 phase_name = phase_name.strip()
                 prv_phase_name = phase_name
-                print(f"    {phase_name} (Scoring rule: {bettable_attr_dict['scoring']})")
-            print(f"        {bettable_attr_dict['bettable_id']} {bettable_attr_dict['start_dt']} {bettable_attr_dict['state']} {bettable_attr_dict['t1_name']} - {bettable_attr_dict['t2_name']} ")
+                print(f"    {phase_name} (Scoring rule: {bettable_attr_dict['phase°scoring']})")
+            print(f"        {bettable_attr_dict['id']} {bettable_attr_dict['start_dt']} {bettable_attr_dict['state']} {bettable_attr_dict['t1°name']} - {bettable_attr_dict['t2°name']} => {bettable_attr_dict['outcome']}")
 
 def compute_ranking():
     """
     UC Tournament ranking:
     OPEN tournament T selected
     """
-    betty = Betty()
     if UiAdminContext().tournament_selected_id:
         # Select the tournament's bettables which have a non-NULL outcome
-        bettable_attr_dicts = betty.query(
+        bettable_attr_dicts = SqlStore().run_query(
             f"SELECT b.id as bettable_id, b.outcome, p.id as phase_id "
-            f"FROM {Bettable._table_} b, {Phase._table_} p, {Tournament._table_} tr "
+            f"FROM {Bettable._table_} b, {Phase._table_} p "
             f"WHERE b.phase_id = p.id AND p.tournament_id = {UiAdminContext().tournament_selected_id} AND b.outcome IS NOT NULL "
             f"ORDER BY b.start_dt ASC")
+        #todo bettables, bettable_attr_dicts = Bettable(phase=Phase(Tournament={UiAdminContext().tournament_selected_id})).load_all(ordering=[('start_dt', 'ASC')])
 
         scoring = dict()
         bet_score = dict()
@@ -174,7 +176,7 @@ def compute_ranking():
 
         for bettable_attr_dict in bettable_attr_dicts:
             # Select all bettor predictions for that bettable
-            bets, _ = Bet(betty, bettable=bettable_attr_dict['bettable_id'], bettor=Bettor(betty)).load_all()
+            bets, _ = Bet(bettable=bettable_attr_dict['bettable_id'], bettor=Bettor()).load_all()
             for bet in bets:
                 scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable_attr_dict['outcome'])]
 
@@ -187,7 +189,7 @@ def compute_ranking():
                 prv_score = bettor_score[1]
                 ranking = rank + 1
             print(f"{ranking:3} {bettor_score[0]._nickname._value:20} {bettor_score[1]:3} points")
-            r = Ranking(betty, tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0])
+            r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0])
             r.load()
             r._rank._value=ranking
             r._score._value=bettor_score[1]
@@ -197,7 +199,7 @@ def compute_ranking():
         ranking += 1
         for name, nickname, nbets, id in filter(lambda x: x[2]==0, tournament_participation(silent=True)):
             print(f"{ranking:3} {nickname:20} 0 points")
-            r = Ranking(betty, tournament=UiAdminContext().tournament_selected_id, bettor=id)
+            r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=id)
             r.load()
             r._rank._value=ranking
             r._score._value=0
@@ -212,23 +214,29 @@ def show_ranking():
     The tournament's current bettor ranking is listed.
     """
     if UiAdminContext().tournament_selected:
-        attr_dicts = Betty().query(
-            f"SELECT r.id, br.nickname, r.tournament_id, r.score, r.rank "
-            f"FROM {Ranking._table_} r "
-            f"JOIN {Bettor._table_} br ON r.bettor_id = br.id "
-            f"WHERE r.tournament_id={UiAdminContext().tournament_selected_id} "
-            f"ORDER BY r.rank ASC")
+        #attr_dicts = Betty().query(
+        #    f"SELECT r.id, br.nickname, r.tournament_id, r.score, r.rank "
+        #    f"FROM {Ranking._table_} r "
+        #    f"JOIN {Bettor._table_} br ON r.bettor_id = br.id "
+        #    f"WHERE r.tournament_id={UiAdminContext().tournament_selected_id} "
+        #    f"ORDER BY r.rank ASC")
 
+        rankings, attr_dicts = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=Bettor()).load_all(ordering=[('rank', 'ASC')])
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
-        ranking = 1
-        for rank,attr_dict in enumerate(attr_dicts):
-            if attr_dict['score'] != prv_score:
+        actual_rank = 1
+        #for rank,attr_dict in enumerate(attr_dicts):
+        #    if attr_dict['score'] != prv_score:
+        #        # Not an ex-aequo
+        #        prv_score = attr_dict['score']
+        #        actual_rank = rank + 1
+        #    print(f"{actual_rank:3} {attr_dict['nickname']:20} {attr_dict['score']:3} points")
+        for rank,ranking in enumerate(rankings):
+            if ranking._score._value != prv_score:
                 # Not an ex-aequo
-                prv_score = attr_dict['score']
-                ranking = rank + 1
-            print(f"{ranking:3} {attr_dict['nickname']:20} {attr_dict['score']:3} points")
-
+                prv_score = actual_rank
+                actual_rank = rank + 1
+            print(f"{actual_rank:3} {ranking._bettor._referred._nickname._value:20} {ranking._score._value:3} points")
 
 def tournament_participation(silent=False) -> list[(int,str,str,int)]:
     """
@@ -236,8 +244,10 @@ def tournament_participation(silent=False) -> list[(int,str,str,int)]:
     """
     if not UiAdminContext().tournament_selected:
         tournament_selection()
+    sql_store = SqlStore()
+
     if UiAdminContext().tournament_selected:
-        attr_dicts = Betty().query(
+        attr_dicts = sql_store.run_query(
             f"SELECT br.name, br.nickname, br.id "
             f"FROM {Participation._table_} p "
             f"FULL JOIN {Bettor._table_} br ON p.bettor_id=br.id "
@@ -248,7 +258,7 @@ def tournament_participation(silent=False) -> list[(int,str,str,int)]:
 
         bet_stats = []
         for attr_dict in attr_dicts:
-            bettor_attr_dicts = Betty().query(
+            bettor_attr_dicts = sql_store.run_query(
                 f"SELECT COUNT(bt.id) as bet_counter, br.nickname "
                 f"FROM {Bet._table_} bt "
                 f"JOIN {Bettor._table_} br ON bt.bettor_id={attr_dict['id']} "
@@ -282,7 +292,7 @@ def input_bettable_outcome():
         tournament_selection()
     if UiAdminContext().tournament_selected:
         # Get the bettable of which the start date is overdue and have not outcome
-        attr_dicts = Betty().query(f"SELECT b.id, ta.name AS a_team_name, tb.name AS b_team_name, b.start_dt, b.state, p.name AS phase_name, b.outcome"
+        attr_dicts = SqlStore().run_query(f"SELECT b.id, ta.name AS a_team_name, tb.name AS b_team_name, b.start_dt, b.state, p.name AS phase_name, b.outcome"
                                    f" FROM {Bettable._table_} b"
                                    f" JOIN {Team._table_} ta ON ta.id = b.a_team_id"
                                    f" JOIN {Team._table_} tb ON tb.id = b.b_team_id"

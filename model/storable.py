@@ -1,9 +1,8 @@
 import copy
 import re
-from abc import ABC, abstractmethod, ABCMeta
-from email.policy import default
+from abc import ABC, ABCMeta
 from functools import reduce
-from importlib.metadata import requires
+from model.sql_store import SqlStore
 
 STORABLE_ORDER_ASC = 'ASC'
 STORABLE_ORDER_DESC = 'DESC'
@@ -78,12 +77,12 @@ class Referenceable(Field):
             super().__init__(referred.id, db_type, name, required, dflt)
             self._referred = referred
             self._id = referred.id
-            self.store_mgr = referred.store_mgr
+            #self.store_mgr = referred.store_mgr
         else:
             super().__init__( referred, db_type, name, required, dflt)
             self._referred = None
             self._id = referred
-            self.store_mgr = None
+            #self.store_mgr = None
 
     @property
     def id(self):
@@ -112,7 +111,8 @@ class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
         #print(f"Adding field attributes to class {name}")
         # Define class attributes
-        if entity_name:=attrs.get(STORABLE_ENTITY_ATTR_NAME):
+        entity_name = attrs.get(STORABLE_ENTITY_ATTR_NAME)
+        if entity_name:
             #print(f"Adding class {name} : {entity_name} to entities mapping")
             Storable.entities[name] = entity_name
         attrs['_class_initialized'] = False
@@ -178,9 +178,9 @@ class Storable(ABC, metaclass=StorableMeta):
             #print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Referenceables: {instance_class._referenceables}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
-    def __init__(self, store_mgr, id=None):
+    def __init__(self, store_mgr=None, id=None):
         super().__init__()
-        self.store_mgr = store_mgr
+        #self.store_mgr = store_mgr or Betty()
         self._id = UniqueField(id, required=False)
 
     @property
@@ -190,9 +190,9 @@ class Storable(ABC, metaclass=StorableMeta):
     def id(self, value:int|None):
         self._id._value = value
 
-    @property
-    def store(self):
-        return self.store_mgr.get_store()
+    #@property
+    #def store(self):
+    #    return self.store_mgr.get_store()
 
     def _load(self, condition = '',ordering:list[tuple[str,str]] = [], consider_joins:bool = False, ):
         if not self._class_initialized:
@@ -201,7 +201,7 @@ class Storable(ABC, metaclass=StorableMeta):
         # Build the WHERE condition upon which to SELECT the record
         # If a unique key is filled in we use it
         # Else if a multi-column unique constraint exist and the corresponding instance attribute have valid values, use it
-
+        sql_store = SqlStore()
         conditions = [condition] if condition else []
 
         # Is a unique key filled in? If yes use it
@@ -209,19 +209,20 @@ class Storable(ABC, metaclass=StorableMeta):
             # For each Unique fields, we add the '=' condition if the field has a value
             if (field:=self.__getattribute__(uniqueFieldName)) is not None:
                 if field._value is not None:
-                    conditions.append(self.store.wrap_condition(field.col_name() or dbfy(uniqueFieldName), '=', field._value))
+                    conditions.append(sql_store.wrap_condition(field.col_name() or dbfy(uniqueFieldName), '=', field._value))
 
         if not conditions:
             # For Unique Constraints, spanning several columns/fields, we add the condition if all participating fields have values
             for uniqueConstraint in self._uniqueConstraints:
                 for field_name in self.__getattribute__(uniqueConstraint)._field_names:
-                    if (field:=self.__getattribute__(field_name)) is not None:
+                    field = self.__getattribute__(field_name)
+                    if field is not None:
                         try: # assume field instance
                             if field._value:
-                                conditions.append(self.store.wrap_condition(field.dbfy_name(field_name) or field._name, '=', field._value))
+                                conditions.append(sql_store.wrap_condition(field.dbfy_name(field_name) or field._name, '=', field._value))
                         except AttributeError:
                             if field:
-                                conditions.append(self.store.wrap_condition(field_name or dbfy(field_name), '=', field))
+                                conditions.append(sql_store.wrap_condition(field_name or dbfy(field_name), '=', field))
                     else:
                         conditions = []
                         break
@@ -235,7 +236,8 @@ class Storable(ABC, metaclass=StorableMeta):
         if consider_joins:
             # check for pre-filled foreign-keys (the '1 container' in a 1-N relationships)
             for refName in self._referenceables:
-                if (referenceable := self.__getattribute__(refName)) is not None:
+                referenceable = self.__getattribute__(refName)
+                if referenceable is not None:
                     joined_class = referenceable._storable_cls
                     src_col_name = dbfy(refName)
                     if referenceable._id:
@@ -248,10 +250,10 @@ class Storable(ABC, metaclass=StorableMeta):
                                              for name in joined_class._fields])
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
 
-        result = self.store_mgr.load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
+        result = SqlStore().load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 
-    def fill(self, attr) -> Storable:
+    def fill(self, attr) -> "Storable":
         # fill-in the field attributes
         print(f"...... Filling new {type(self)} from {attr}")
         self._attr = attr # keep the data source
@@ -265,7 +267,7 @@ class Storable(ABC, metaclass=StorableMeta):
                 if reduce(lambda a,x: a or x.startswith(prefix), attr.keys(), False):
                     # There is some entity data todo what about only the id available?
                     filtered_attr = {k.split(prefix)[-1] : v for k,v in attr.items() if STORABLE_TABLE_COLUMN_SEPARATOR in k}
-                    referenced_entity = entityClass(self.store_mgr)
+                    referenced_entity = entityClass()
                     referenceable._referred = referenced_entity.fill(filtered_attr)
                     #self.__setattr__(field_name, referenceable)
             else:
@@ -317,9 +319,9 @@ class Storable(ABC, metaclass=StorableMeta):
         # If _id is None, this is considered an insertion, else an update
         if self._id is None or self._id._value is None:
             print(f"{type(self)} col_values={col_values} col_list={col_list}")
-            self._id._value = self.store_mgr.get_store().insert(self.store_mgr.class_entity(type(self)), col_list, col_values)
+            self._id._value = SqlStore().insert(self._table_, col_list, col_values)
         else:
-            self.store_mgr.get_store().update(self.store_mgr.class_entity(type(self)), self.id, col_list, col_values)
+            SqlStore().update(self._table_, self.id, col_list, col_values)
         return self.id
 
     def show(self) -> str:

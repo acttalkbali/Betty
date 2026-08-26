@@ -11,7 +11,7 @@ TOURNAMENT_STATE_LOCKED = "LOCKED"
 class Tournament(Storable):
     _table_ = "tournament"
 
-    def __init__(self, store, id=None, name:str=None, start_date:datetime = None, end_date:datetime = None, sheep_credit:int=500):
+    def __init__(self, store=None, id:int|None=None, name:str|None=None, start_date:datetime|None=None, end_date:datetime|None=None, sheep_credit:int=500):
         super().__init__(store, id)
         self._name = UniqueField(name, DbText)
         self._start_dt = Field(start_date, DbDate)

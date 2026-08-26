@@ -5,7 +5,7 @@ import os
 class SqlStore:
 
     _instance = None
-    _debug = False # Set to True to have debug information in the console
+    _debug = True # Set to True to have debug information in the console
 
     DEFAULT_DB_CONFIG = {
         #"host": os.getenv("DB_HOST"),
@@ -79,7 +79,7 @@ class SqlStore:
         success = True
         cmds = ' '.join(commands)
         commands = [cmds]
-        self.debug(f"IN run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        self.debug(f"IN run_commands connection is {'CLOSED' if self._conn.closed else 'OPEN'}")
         if self._conn.closed:
             self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         command = ''
@@ -90,17 +90,17 @@ class SqlStore:
                         cur.execute(command)
                     conn.commit()
                 self.debug(f"Succeeded: {command}", force_debug)
-                self.debug(f"Post commit run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+                self.debug(f"Post commit run_commands connection is {'CLOSED' if self._conn.closed else 'OPEN'}")
         except Exception as e:
             print(f"Failed: {command}: {e}")
             success = False
 
-        self.debug(f"OUT run_commands connection is {"CLOSED" if self._conn.closed else "OPEN"}")
+        self.debug(f"OUT run_commands connection is {'CLOSED' if self._conn.closed else 'OPEN'}")
         return success
 
     def insert(self, table:str, attr_list:list[str], attr_values:list[str], returning:str='id') -> int|None:
         id = None
-        cmd = f"INSERT INTO {table} ({', '.join(attr_list)}) VALUES ({', '.join(attr_values)}) RETURNING {id};"
+        cmd = f"INSERT INTO {table} ({', '.join(attr_list)}) VALUES ({', '.join(attr_values)}) RETURNING {returning};"
         if self._conn.closed:
             self._conn = psycopg.connect(**self.DEFAULT_DB_CONFIG)
         try:
@@ -137,3 +137,20 @@ class SqlStore:
         return id
 
 
+    def load(self, pycls, joins, join_columns:list, condition: str|None, ordering:str|None): # todo hide SQL-specifics in sql_store
+        """
+        loads all records for the model entity matching the specified condition from the DB
+        :param pycls: The python model class
+        :param joins: a list of triplets of the form (table, foreign-key-column, key-column)
+        :param condition: the condition, expressed as a DB-specific expression, that the entities must meet to be loaded.
+        :return:
+        """
+        table = pycls._table_
+        if table:
+            table_joins = ' '.join([" JOIN {} {} ON {}.id={}".format(
+                                    joined._table_, selector, selector, (value and f"'{value}'") or f"{selector}_id")
+                                for joined, selector, value in joins])
+            query = f"SELECT {table}.*{(', '+(', '.join(join_columns))) if join_columns else ''}" + f" FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
+            return SqlStore().run_query(query)
+        else:
+            return None

@@ -9,7 +9,7 @@ class SheepLivestock(Storable):
     Dans le sens où il faut participer à un tournoi pour acheter des moutons, le livestock pourrait être lié à la
     participation mais cela allonge l'accès au Bettor
     """
-    def __init__(self, store, sheep_value: SheepValue|int=None, bettor: Bettor|int=None, quantity: int=None, id:int|None=None):
+    def __init__(self, store=None, sheep_value: SheepValue|int=None, bettor: Bettor|int=None, quantity: int=None, id:int|None=None):
         super().__init__(store)
         self._sheep_value = Referenceable(SheepValue, sheep_value)
         self._bettor = Referenceable(Bettor, bettor)
