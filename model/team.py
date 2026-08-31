@@ -28,11 +28,10 @@ class Team(Storable):
 
 
 if __name__ == '__main__':
-    from .betty import Betty
-    betty = Betty()
-    t1 = Tournament(betty, "T1")
-    t2 = Tournament(betty, "T2", datetime.now())
-    t3 = Tournament(betty, "FIFA World Cup 2026", datetime(day=11, month=6, year=2026, hour=21), datetime(day=19, month=7, year=2026, hour=21))
+    from .tournament import Tournament
+    t1 = Tournament(name="T1")
+    t2 = Tournament(name="T2", start_dt=datetime.now())
+    t3 = Tournament(name="FIFA World Cup 2026", start_date=datetime(day=11, month=6, year=2026, hour=21), end_date=datetime(day=19, month=7, year=2026, hour=21))
     print(f'{t1.name} / {t2.name} / {t3.name}')
     t3.save()
     #t1.name = "Tournament 1"

@@ -137,3 +137,20 @@ class SqlStore:
         return id
 
 
+    def load(self, pycls, joins, join_columns:list, condition: str|None, ordering:str|None): # todo hide SQL-specifics in sql_store
+        """
+        loads all records for the model entity matching the specified condition from the DB
+        :param pycls: The python model class
+        :param joins: a list of triplets of the form (table, foreign-key-column, key-column)
+        :param condition: the condition, expressed as a DB-specific expression, that the entities must meet to be loaded.
+        :return:
+        """
+        table = pycls._table_
+        if table:
+            table_joins = ' '.join([" JOIN {} {} ON {}.id={}".format(
+                                    joined._table_, selector, selector, (value and f"'{value}'") or f"{selector}_id")
+                                for joined, selector, value in joins])
+            query = f"SELECT {table}.*{(', '+(', '.join(join_columns))) if join_columns else ''}" + f" FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
+            return SqlStore().run_query(query)
+        else:
+            return None

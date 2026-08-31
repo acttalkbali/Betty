@@ -4,6 +4,7 @@ Five minutes before the start of the first bettable of a tournament T, T state i
 """
 from datetime import datetime
 
+from model.sql_store import SqlStore
 from ui.console_ui import input_selection, info
 from model.bettable import Bettable, BETTABLE_STATE_CLOSED, BETTABLE_OUTCOME_DRAW, BETTABLE_OUTCOME_A_WINS, \
     BETTABLE_OUTCOME_B_WINS
@@ -45,7 +46,7 @@ def input_outcome(attr_dict):
 
 if __name__ == '__main__':
     # Get the bettable of which the start date is overdue and have not outcome
-    attr_dicts = Betty().query(f"SELECT b.id, ta.name AS a_team_name, tb.name AS b_team_name, b.start_dt, b.state, p.name AS phase_name, tr.name AS tournament_name, b.outcome"
+    attr_dicts = SqlStore().run_query(f"SELECT b.id, ta.name AS a_team_name, tb.name AS b_team_name, b.start_dt, b.state, p.name AS phase_name, tr.name AS tournament_name, b.outcome"
                                f" FROM {Bettable._table_} b"
                                f" JOIN {Team._table_} ta ON ta.id = b.a_team_id"
                                f" JOIN {Team._table_} tb ON tb.id = b.b_team_id"

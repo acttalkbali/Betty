@@ -30,7 +30,7 @@ def setup(betty):
     euro2028.save()
     teams = {}
     for phase_dict in phases:
-        phase = Phase(betty, phase_dict['name'], euro2028, "OPEN", phase_dict['scoring'])
+        phase = Phase(name=phase_dict['name'], tournament=euro2028, state="OPEN", scoring=phase_dict['scoring'])
         phase.save()
         for group_name, group_compo in phase_dict['pools'].items():
             for team_name, sheep_value in group_compo:
@@ -39,5 +39,5 @@ def setup(betty):
                 sheep_value = SheepValue(betty, teams[team_name], euro2028, sheep_value)
                 sheep_value.save()
         for start_dt, team_a_name, team_b_name in calendar:
-            bettable = Bettable(betty, phase, teams[team_a_name], teams[team_b_name], datetime.fromisoformat(start_dt))
+            bettable = Bettable(phase=phase, team_a=teams[team_a_name], team_b=teams[team_b_name], start_dt=datetime.fromisoformat(start_dt))
             bettable.save()

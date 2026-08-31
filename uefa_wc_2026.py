@@ -9,8 +9,8 @@ def setup(betty):
 
     wc2026 = Tournament(betty,
                         name="FIFA World Cup 2026",
-                        start_date=datetime.fromisoformat('2026-06-11 21:00:00+00'),
-                        end_date=datetime.fromisoformat('2026-07-19 21:00:00+00'))
+                        start_date=datetime.fromisoformat('2026-07-29 09:00:00+00'),
+                        end_date=datetime.fromisoformat('2026-09-19 21:00:00+00'))
     phases:list[dict] = [
                 {
                     'name' : '1st round',
@@ -44,18 +44,18 @@ def setup(betty):
                 }
             ]
     calendar = [
-        ('2026-06-11 21:00+00', 'Mexico', 'South Africa'),
-        ('2026-06-12 04:00+00', 'South Korea', 'Czech Republic'),
-        ('2026-06-18 18:00+00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][0][0]),
-        ('2026-06-19 03:00+00', phases[0]['pools']['Group A'][2][0], phases[0]['pools']['Group A'][1][0]),
-        ('2026-06-25 03:00+00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][2][0]),
-        ('2026-06-25 03:00+00', phases[0]['pools']['Group A'][0][0], phases[0]['pools']['Group A'][1][0]),
+        ('2026-07-29 13:00+00', 'Mexico', 'South Africa'),
+        ('2026-08-12 04:00+00', 'South Korea', 'Czech Republic'),
+        ('2026-08-18 18:00+00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][0][0]),
+        ('2026-08-19 03:00+00', phases[0]['pools']['Group A'][2][0], phases[0]['pools']['Group A'][1][0]),
+        ('2026-08-25 03:00+00', phases[0]['pools']['Group A'][3][0], phases[0]['pools']['Group A'][2][0]),
+        ('2026-08-25 03:00+00', phases[0]['pools']['Group A'][0][0], phases[0]['pools']['Group A'][1][0]),
     ]
 
     wc2026.save()
     teams = {}
     for phase_dict in phases:
-        phase = Phase(betty, phase_dict['name'], wc2026, "OPEN", phase_dict['scoring'])
+        phase = Phase(name=phase_dict['name'], tournament=wc2026, state="OPEN", scoring=phase_dict['scoring'])
         phase.save()
         for group_name, group_compo in phase_dict['pools'].items():
             for team_name, sheep_value in group_compo:

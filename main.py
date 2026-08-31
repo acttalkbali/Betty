@@ -15,7 +15,7 @@ if __name__ == '__main__':
     betty.drop_db()
     betty.setup_db()
 
-#    print(betty.class_entity(Tournament))
+#    print(Tournament._table_)
 
 #    t1 = Tournament(betty, "T1")
 #    t2 = Tournament(betty, "T2", datetime.now())
