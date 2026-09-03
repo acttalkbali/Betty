@@ -17,6 +17,8 @@ erDiagram
     TOURNAMENT {
         int id
         string name
+        date start_dt
+        int sheep_credit
     }
 
     BETTABLE {
@@ -30,10 +32,14 @@ erDiagram
     BETTOR {
         string id
         string name
+        string nickname
+        string email
+        string password
     }
     BET {
         int bettor_id
         string prediction "0|1|2|01|02|12"
+        int score
     }
     TEAM {
         string id
@@ -42,6 +48,8 @@ erDiagram
     PHASE {
         int id
         string name
+        string state
+        string scoring
     }
     BTEAM {
         int id

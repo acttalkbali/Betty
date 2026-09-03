@@ -7,7 +7,6 @@ class Team(Storable):
     def __init__(self, store=None, name:str|None=None, id:int|None=None):
         super().__init__(store, id)
         self._name = UniqueField(name, DbText)
-        #self._tournament = tournament
 
     def __str__(self):
         return f'{self._name or self._id}'
