@@ -157,16 +157,17 @@ def betty_status():
 def compute_ranking():
     """
     UC Tournament ranking:
-    OPEN tournament T selected
+    pre: OPEN tournament T selected
     """
     if UiAdminContext().tournament_selected_id:
         # Select the tournament's bettables which have a non-NULL outcome
-        bettable_attr_dicts = SqlStore().run_query(
-            f"SELECT b.id as bettable_id, b.outcome, p.id as phase_id "
-            f"FROM {Bettable._table_} b, {Phase._table_} p "
-            f"WHERE b.phase_id = p.id AND p.tournament_id = {UiAdminContext().tournament_selected_id} AND b.outcome IS NOT NULL "
-            f"ORDER BY b.start_dt ASC")
-        #todo bettables, bettable_attr_dicts = Bettable(phase=Phase(Tournament={UiAdminContext().tournament_selected_id})).load_all(ordering=[('start_dt', 'ASC')])
+        #bettable_attr_dicts = SqlStore().run_query(
+        #    f"SELECT b.id as bettable_id, b.outcome, p.id as phase_id "
+        #    f"FROM {Bettable._table_} b, {Phase._table_} p "
+        #    f"WHERE b.phase_id = p.id AND p.tournament_id = {UiAdminContext().tournament_selected_id} AND b.outcome IS NOT NULL "
+        #    f"ORDER BY b.start_dt ASC")
+        phase = Phase(tournament=UiAdminContext().tournament_selected_id)
+        bettables, bettable_attr_dicts = Bettable(phase=phase).load_all(condition='outcome IS NOT NULL', ordering=[('start_dt', 'ASC')])
 
         scoring = dict()
         bet_score = dict()
@@ -174,11 +175,17 @@ def compute_ranking():
             for outcome in E_OUTCOMES:
                 bet_score[(prediction,outcome)] = calculate_score(prediction, outcome)
 
-        for bettable_attr_dict in bettable_attr_dicts:
+        #for bettable_attr_dict in bettable_attr_dicts:
+        #    # Select all bettor predictions for that bettable
+        #    bets, _ = Bet(bettable=bettable_attr_dict['bettable_id'], bettor=Bettor()).load_all()
+        #    for bet in bets:
+        #        scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable_attr_dict['outcome'])]
+
+        for bettable in bettables:
             # Select all bettor predictions for that bettable
-            bets, _ = Bet(bettable=bettable_attr_dict['bettable_id'], bettor=Bettor()).load_all()
+            bets, _ = Bet(bettable=bettable._id, bettor=Bettor()).load_all()
             for bet in bets:
-                scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable_attr_dict['outcome'])]
+                scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable._outcome)]
 
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
@@ -225,12 +232,6 @@ def show_ranking():
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
         actual_rank = 1
-        #for rank,attr_dict in enumerate(attr_dicts):
-        #    if attr_dict['score'] != prv_score:
-        #        # Not an ex-aequo
-        #        prv_score = attr_dict['score']
-        #        actual_rank = rank + 1
-        #    print(f"{actual_rank:3} {attr_dict['nickname']:20} {attr_dict['score']:3} points")
         for rank,ranking in enumerate(rankings):
             if ranking._score._value != prv_score:
                 # Not an ex-aequo

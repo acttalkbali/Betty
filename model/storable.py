@@ -1,13 +1,16 @@
 import copy
 import re
 from abc import ABC, ABCMeta
+from dataclasses import dataclass
 from functools import reduce
+from typing import Any
+
 from model.sql_store import SqlStore
 
 STORABLE_ORDER_ASC = 'ASC'
 STORABLE_ORDER_DESC = 'DESC'
 STORABLE_ENTITY_ATTR_NAME = '_table_'
-STORABLE_TABLE_COLUMN_SEPARATOR = '°'
+STORABLE_TABLE_COLUMN_SEP = '°'
 
 def dbfy(name : str):
     if name:
@@ -22,7 +25,7 @@ def dbfy_value(name : str):
     return name.strip('_') if name else None
 
 def joined_column(storable_cls, attribute_name = 'id'):
-    return storable_cls._table_ + STORABLE_TABLE_COLUMN_SEPARATOR + attribute_name
+    return storable_cls._table_ + STORABLE_TABLE_COLUMN_SEP + attribute_name
 
 class DbFieldType(ABC):
     pass
@@ -138,6 +141,12 @@ class StorableMeta(ABCMeta):
         return cls
 
 
+@dataclass
+class Join:
+    """Class for keeping track of join"""
+    joined_cls: Storable
+    src_col_name: str
+    value: Any
 
 class Storable(ABC, metaclass=StorableMeta):
 
@@ -194,15 +203,18 @@ class Storable(ABC, metaclass=StorableMeta):
     #def store(self):
     #    return self.store_mgr.get_store()
 
-    def _load(self, condition = '',ordering:list[tuple[str,str]] = [], consider_joins:bool = False, ):
-        if not self._class_initialized:
-            Storable.init_class(self)
-
-        # Build the WHERE condition upon which to SELECT the record
-        # If a unique key is filled in we use it
-        # Else if a multi-column unique constraint exist and the corresponding instance attribute have valid values, use it
+    def derive_conditions_and_joins(self, consider_joins:bool=True) -> tuple[[], []]:
+        '''
+        Derive
+        a) equality conditions from filled-in regular or unique fields
+        b) joins with on-condition from referenceables filled-in with entities
+        c) equality conditions from referenceables filled-in with an id only
+        returns:
+        '''
         sql_store = SqlStore()
-        conditions = [condition] if condition else []
+
+        conditions = []
+        joins = []
 
         # Is a unique key filled in? If yes use it
         for uniqueFieldName in self._uniqueFields:
@@ -210,6 +222,14 @@ class Storable(ABC, metaclass=StorableMeta):
             if (field:=self.__getattribute__(uniqueFieldName)) is not None:
                 if field._value is not None:
                     conditions.append(sql_store.wrap_condition(field.col_name() or dbfy(uniqueFieldName), '=', field._value))
+
+        # Add an '=' condition for non-unique pre-filled fields?
+        for fieldName in self._fields:
+            if fieldName not in self._uniqueFields and fieldName not in self._referenceables:
+                # For each regular fields, we add the '=' condition if the field has a value
+                if (field:=self.__getattribute__(fieldName)) is not None:
+                    if field._value is not None:
+                        conditions.append(sql_store.wrap_condition(field.col_name() or dbfy(fieldName), '=', field._value))
 
         if not conditions:
             # For Unique Constraints, spanning several columns/fields, we add the condition if all participating fields have values
@@ -229,28 +249,52 @@ class Storable(ABC, metaclass=StorableMeta):
                 if conditions: # a unique constraint condition could be built
                     break
 
-        #todo? add an '=' condition for non-unique pre-filled fields?
-
-        joins = []
         join_columns = []
         if consider_joins:
             # check for pre-filled foreign-keys (the '1 container' in a 1-N relationships)
             for refName in self._referenceables:
                 referenceable = self.__getattribute__(refName)
                 if referenceable is not None:
-                    joined_class = referenceable._storable_cls
+                    joined_cls = referenceable._storable_cls
                     src_col_name = dbfy(refName)
-                    if referenceable._id:
-                        joins.append((joined_class, src_col_name, referenceable._id)) # JOIN table refName ON refName.id = id-value
-                    else:
+                    join = None
+                    if self._referred:
                         # load related entities too
-                        joins.append((joined_class, src_col_name, None)) # JOIN table refName ON refName.id = refName_id
-                    if joined_class._fields: # !! May be false if no instance of the joined_class has been created yet
-                        join_columns.extend([f"{src_col_name}.{dbfy(name) + ('_id' if name in joined_class._referenceables else '')} AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEPARATOR}{dbfy(name) + ('_id' if name in joined_class._referenceables else '')}"
-                                             for name in joined_class._fields])
+                        # if id is None, we'll join on attribute equality rather than on attribute value equality
+                        join = Join(joined_cls, src_col_name, self._referred.id)
+                        # Recurse on the referred entity
+                        ref_conditions, ref_joins = self._referred.derive_conditions_and_joins(consider_joins=consider_joins)
+                        joins.append(join)
+                        joins.extend(ref_joins)
+                        conditions.extend(ref_conditions)
+
+                    elif referenceable._id:
+                        join = Join(joined_cls, src_col_name, referenceable._id)
+                        joins.append(join) # JOIN table refName ON refName.id = id-value
+
+                    if join:
+                        # add the joined table attributes to the query
+                        if joined_cls._fields: # !! May be false if no instance of the joined_class has been created yet
+                            join_columns.extend(
+                                [f"{src_col_name}.{dbfy(name) + ('_id' if name in joined_cls._referenceables else '')}"
+                                 f" AS {dbfy(refName)}{STORABLE_TABLE_COLUMN_SEP}{dbfy(name) + ('_id' if name in joined_cls._referenceables else '')}"
+                                 for name in joined_cls._fields])
+
+    def _load(self, condition = '',ordering:list[tuple[str,str]] = [], consider_joins:bool = False, ):
+        if not self._class_initialized:
+            Storable.init_class(self)
+
+        # Build the WHERE condition upon which to SELECT the record
+        # If a unique key is filled in we use it
+        # Else if a multi-column unique constraint exist and the corresponding instance attribute have valid values, use it
+        sql_store = SqlStore()
+        conditions = [condition] if condition else []
+
+        conditions, joins = self.derive_conditions_and_joins()
+
         col_ordering = [f"{dbfy(field_name)} {direction}" for field_name, direction in ordering if field_name in self._fields]
 
-        result = SqlStore().load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
+        result = sql_store.load(type(self), joins, join_columns, ' AND '.join(conditions), ', '.join(col_ordering))
         return result
 
     def fill(self, attr) -> "Storable":
@@ -262,11 +306,11 @@ class Storable(ABC, metaclass=StorableMeta):
                 # if attr contains referenceable_XXX data, let's create an object for it
                 referenceable = self.__getattribute__(field_name)
                 entityClass = referenceable._storable_cls
-                prefix = entityClass._table_ + STORABLE_TABLE_COLUMN_SEPARATOR
+                prefix = entityClass._table_ + STORABLE_TABLE_COLUMN_SEP
                 # Fill the object with attributes not related to the current entity
                 if reduce(lambda a,x: a or x.startswith(prefix), attr.keys(), False):
                     # There is some entity data todo what about only the id available?
-                    filtered_attr = {k.split(prefix)[-1] : v for k,v in attr.items() if STORABLE_TABLE_COLUMN_SEPARATOR in k}
+                    filtered_attr = {k.split(prefix)[-1] : v for k,v in attr.items() if STORABLE_TABLE_COLUMN_SEP in k}
                     referenced_entity = entityClass()
                     referenceable._referred = referenced_entity.fill(filtered_attr)
                     #self.__setattr__(field_name, referenceable)
