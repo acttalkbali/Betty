@@ -76,7 +76,7 @@ def login(bettor_name='', bettor_pwd='') -> Bettor|None:
     result = bettor.load()
     if len(result)==1:
         # bettor filled-in successfully
-        if bettor._pwd._value != bettor_pwd:
+        if bettor.pwd._value != bettor_pwd:
             "Incorrect password. Login denied"
             UiBettorContext().logged_in = None
             return None
@@ -188,7 +188,7 @@ def buy_sheeps(bettor:Bettor):
                 choices = []
                 participation = Participation(id=UiBettorContext().participation_id)
                 participation.load()
-                credit = participation._credit._value #UiBettorContext().credit
+                credit = participation.credit._value #UiBettorContext().credit
                 ui.info(f"Your credit: {credit}")
                 for attr_dict in attr_dicts:
                     max_sheeps = credit // int(attr_dict['sheep_value'])
@@ -205,7 +205,7 @@ def buy_sheeps(bettor:Bettor):
                     sheep_livestock = SheepLivestock(sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=n)
                     sheep_livestock.save()
                     livestock[attr_dicts[selection]['name']] = n
-                    participation._credit._value = UiBettorContext().credit
+                    participation.credit._value = UiBettorContext().credit
                     participation.save()
                 else:
                     break

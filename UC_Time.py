@@ -39,8 +39,8 @@ def input_outcome(attr_dict):
             outcome = BETTABLE_OUTCOME_B_WINS
         elif outcome_selected == 2:
             outcome = BETTABLE_OUTCOME_DRAW # Draw
-        bettable._outcome._value = outcome
-        bettable._state._value = BETTABLE_STATE_CLOSED
+        bettable.outcome._value = outcome
+        bettable.state._value = BETTABLE_STATE_CLOSED
         attr_dict['outcome'] = outcome
         bettable.save()
 
