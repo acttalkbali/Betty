@@ -2,12 +2,16 @@ import copy
 import re
 from abc import ABC, ABCMeta
 from functools import reduce
+from datetime import datetime
 from model.sql_store import SqlStore
+
 
 STORABLE_ORDER_ASC = 'ASC'
 STORABLE_ORDER_DESC = 'DESC'
 STORABLE_ENTITY_ATTR_NAME = '_table_'
 STORABLE_TABLE_COLUMN_SEPARATOR = '°'
+STORABLE_PK_FIELD_ATTR = '_pk'
+STORABLE_PK_DEFAULT_ATTR = 'id'
 
 def dbfy(name : str):
     if name:
@@ -24,28 +28,32 @@ def dbfy_value(name : str):
 def joined_column(storable_cls, attribute_name = 'id'):
     return storable_cls._table_ + STORABLE_TABLE_COLUMN_SEPARATOR + attribute_name
 
-class DbFieldType(ABC):
-    pass
 
-class DbInt(DbFieldType):
-    pass
-
-class DbDate(DbFieldType):
-    pass
-
-class DbText(DbFieldType):
-    pass
-
-class DbFloat(DbFieldType):
-    pass
+DB_INTEGER = "INT"
+DB_DATETIME = "TIMESTAMPTZ"
+DB_TEXT = "TEXT"
+DB_VARCHAR = "VARCHAR"
+DB_FLOAT = "FLOAT"
+DB_BOOLEAN = "BOOLEAN"
+DB_AUTO_INC = "SERIAL"
 
 class Field:
-    def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
-        self._value = value
-        self._type = db_type
-        self._name = dbfy(name) if name else None
-        self._required = required
-        self._dflt = dflt
+    def __init__(self, unique:bool=False, foreign=None, dflt=None, required:bool=True, primary_key:bool=False, db_type:str=DB_INTEGER, check=None):
+        self.attribute_name = None
+        self.sql_type = db_type # supplied by the subclass
+        self.unique = unique
+        self.foreign = foreign
+        self.default_value = dflt
+        self.required = required
+        self.primary_key = primary_key # todo needed?
+        self.check = check
+
+    #def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
+    #    self._value = value
+    #    self._type = db_type
+    #    self._name = dbfy(name) if name else None
+    #    self._required = required
+    #    self._dflt = dflt
 
     def dbfy_value(self):
         return f"'{self._value}'"
@@ -62,26 +70,203 @@ class Field:
     def __repr__(self) -> str:
         return f"{self._type}={self._value}" # f"{type(self)} {self._name}:{self._type}={self._value}"
 
-class UniqueField(Field):
-    def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
-        super().__init__(value, db_type, name, required=required, dflt=dflt)
+    def __set_name__(self, owner, name):
+        self._name = dbfy(name)
+        self.attribute_name = name
+        owner._fields[name] = self
 
-class UniqueConstraint:
-    def __init__(self, field_names):
-        self._field_names = field_names
+    def __get__(self, instance, owner):
+        if instance:
+            return instance.__dict__[self.attribute_name]
+        else:
+            return self # Class-call, return the descriptor
 
-class Referenceable(Field):
-    def __init__(self, storable_cls, referred: Storable|int, db_type=DbInt, name=None, required=True, dflt=None):
-        self._storable_cls = storable_cls
-        if isinstance(referred, Storable):
-            super().__init__(referred.id, db_type, name, required, dflt)
-            self._referred = referred
-            self._id = referred.id
+    def __set__(self, instance, value):
+        '''
+        update the instance field to the supplied value.
+        The instance is marked as dirty if there is a actual value change and the attribute is added
+        to instance dirty_field set (So we know what columns to sql UPDATE).
+        :param instance: the instance to which this field belongs
+        :param value: the value to set
+        :return: None
+        :exception: ValueError: unsupported value
+        '''
+        if value is None and self.default_value:
+            value = self.default_value
+
+        if self is None and self.required:
+            raise ValueError("value is required")
+
+        try:
+            value = self.check_and_coerce(value)
+        except ValueError as e:
+            raise e
+
+        if isinstance(self.check, callable) and not self.check(instance, value):
+            raise ValueError("check constraint violation")
+
+        value_change = False
+        try:
+            current_value = instance.__dict__[self.attribute_name]
+            value_change = current_value != value
+        except KeyError as e:
+            # No value yet. Won't mark as dirty
+            instance.__dict__[self.attribute_name] = value
+
+        if value_change:
+            instance.__dict__[self.attribute_name] = value
+            if self.attribute_name != instance._pk_id_field_name:  # Avoid using id to flag dirt
+                instance._is_dirty = True
+                instance._dirty_fields.add(self.attribute_name)
+
+    def sql_def(self):
+        return f"{self.attribute_name} {self.sql_type}" \
+               + (' NOT NULL' if self.required else '') \
+               + (' UNIQUE' if self.unique else '') \
+               + (' PRIMARY KEY' if self.primary_key else '') \
+               + ((' DEFAULT ' + self.default_value) if self.default_value else '')
+
+    def check_and_coerce(self, value):
+        '''
+        Default method. No check
+        :param value:
+        :return: the supplied value or the default if the value is None
+        '''
+        return value or self.default_value
+
+
+class BooleanField(Field):
+    def __init__(self, unique:bool=False, foreign:bool=False, required:bool=True, default_value=None, primary_key:bool=False):
+        super().__init__(unique, foreign, default_value, required, primary_key, DB_BOOLEAN)
+
+    def check_and_coerce(self, value) -> bool:
+        '''
+        Verify value is an int or a stringified int
+        :param value: the value to be checked
+        :return: the value coerced to a bool
+        :exception ValueError: never raised
+        '''
+        if value is None:
+            return self.default_value
+        return True if value else False
+
+
+class IntegerField(Field):
+    def __init__(self, unique:bool=False, foreign:bool=False, default_value=None, required=True, primary_key:bool=False):
+        super().__init__(unique, foreign, default_value, required, primary_key, DB_INTEGER)
+
+    def check_and_coerce(self, value) -> int:
+        '''
+        Verify value is an int or a stringified int
+        :param value: the value to be checked
+        :return: the value coerced to an int
+        :exception ValueError: if value may not be coerced to an int
+        '''
+        if value is None:
+            return self.default_value
+        if isinstance(value, int):
+            return value
+        return int(value) # may raise ValueError
+
+
+class SerialField(Field):
+    def __init__(self, unique:bool=True, foreign:bool=False, default_value=None, required=False, primary_key:bool=False):
+        super().__init__(unique, foreign, default_value, required, primary_key, DB_AUTO_INC)
+
+    def check_and_coerce(self, value) -> int|None:
+        '''
+        Verify value is an (possibly stringified) int or None. However, if None, don't use the default
+        :param value: the value to be checked
+        :return: the value coerced to an int
+        :exception ValueError: if value may not be coerced to an int
+        '''
+        if isinstance(value, int):
+            return value
+        elif value is None:
+            return None
+        else:
+            return int(value) # may raise ValueError
+
+
+class CharField(Field):
+    def __init__(self, unique: bool = False, foreign: bool = False, default_value=None, required:bool=True, primary_key:bool=False, max_len=None):
+        super().__init__(unique, foreign, default_value, required, primary_key, f"{DB_VARCHAR}({max_len})" if max_len else DB_TEXT)
+        self.max_len = max_len
+
+    def check_and_coerce(self, value) -> str:
+        '''
+        Verify the stringified version of the value isn't too long
+        :param value: the value to be checked
+        :return: the value coerced to a string
+        :exception ValueError: if the coerced value is longer than max_len
+        '''
+        if value is None:
+            return self.default_value
+        str_value = str(value)
+        if self.max_len and len(str_value) > self.max_len:
+            raise ValueError(f'Too long value \\{value}\\ for {self.attribute_name}. Max length is {self.max_len}')
+        return str_value
+
+
+class FloatField(Field):
+    def __init__(self, unique: bool = False, foreign: bool = False, default_value=None, required: bool = True,
+                 primary_key: bool = False):
+        super().__init__(unique, foreign, default_value, required, primary_key, DB_FLOAT)
+
+    def check_and_coerce(self, value) -> str:
+        '''
+        Verify the stringified version of the value isn't too long
+        :param value: the value to be checked
+        :return: the value coerced to a string
+        :exception ValueError: if the coerced value is longer than max_len
+        '''
+        if value is None:
+            return self.default_value
+        return float(value)
+
+
+class DateField(Field):
+    def __init__(self, unique: bool = False, foreign: bool = False, default_value=None, required: bool = True,
+                 primary_key: bool = False):
+        super().__init__(unique, foreign, default_value, required, primary_key,
+                         DB_DATETIME)
+
+    def check_and_coerce(self, value) -> str:
+        '''
+        Verify the stringified version of the value isn't too long
+        :param value: the value to be checked
+        :return: the value coerced to a string
+        :exception ValueError: if the coerced value is longer than max_len
+        '''
+        if value is None:
+            return self.default_value
+        if isinstance(value, str):
+            return datetime.fromisoformat(value)
+        elif isinstance(value, datetime):
+            return value
+        else:
+            raise ValueError(f'Not a valid datetime')
+
+
+class Many2OneField(Field):
+    def __init__(self, target_field:Field, db_type=DB_INTEGER, name=None, required=True, dflt=None):
+        super().__init__(db_type, name=name, required=required, dflt=dflt, unique=False, foreign=True)
+        self._target_field = target_field
+
+    def check_and_coerce(self, value) -> str:
+        '''
+        Verify the stringified version of the value isn't too long
+        :param value: the value to be checked
+        :return: the value coerced to a string
+        :exception ValueError: if the coerced value is longer than max_len
+        '''
+        if isinstance(value, Storable):
+            self._referred = value
+            self._id = value.getattr(self.target_field.attribute_name)
             #self.store_mgr = referred.store_mgr
         else:
-            super().__init__( referred, db_type, name, required, dflt)
+            self.foreign_value = self.target_field.check_and_coerce(value)
             self._referred = None
-            self._id = referred
             #self.store_mgr = None
 
     @property
@@ -107,6 +292,41 @@ class Referenceable(Field):
     def __repr__(self) -> str:
         return f"{self._referred}={self.id}" # f"{type(self)} {self._name}:{self._type}={self._value}"
 
+
+class One2OneField(Field):
+    def __init__(self, storable_cls, target_field:Field, db_type=DB_INTEGER, name=None, required=True, dflt=None):
+        super().__init__(db_type, name=name, required=required, dflt=dflt, unique=True, foreign=True)
+        self._storable_cls = storable_cls
+        self._target_field = target_field
+
+    def check_and_coerce(self, value) -> str:
+        '''
+        Verify the stringified version of the value isn't too long
+        :param value: the value to be checked
+        :return: the value coerced to a string
+        :exception ValueError: if the coerced value is longer than max_len
+        '''
+        if isinstance(value, Storable):
+            self._referred = value
+            self._id = value.getattr(self.target_field.attribute_name)
+            #self.store_mgr = referred.store_mgr
+        else:
+            self.foreign_value = self.target_field.check_and_coerce(value)
+            self._referred = None
+            #self.store_mgr = None
+
+
+class UniqueConstraint:
+    def __init__(self, fields:[Field], name:str=""):
+        self.fields = fields
+        self.name = name or "uc_" + '_'.join(map(lambda field: field.owner_cls.__name__, fields))
+
+    def sql_def(self):
+        return f"CONSTRAINT {self.name} UNIQUE (" \
+               + ','.join(map(lambda field: field.attribute_name, self.fields)) \
+               + ')'
+
+
 class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
         #print(f"Adding field attributes to class {name}")
@@ -116,24 +336,38 @@ class StorableMeta(ABCMeta):
             #print(f"Adding class {name} : {entity_name} to entities mapping")
             Storable.entities[name] = entity_name
         attrs['_class_initialized'] = False
-        attrs['_uniqueFields'] = None
-        attrs['_uniqueConstraints'] = None
-        attrs['_referenceables'] = None
-        attrs['_fields'] = None
+        attrs['_uniqueFields'] = [attr for attr in attrs if isinstance(attr, Field) and attr.unique]
+        attrs['_uniqueConstraints'] = [attr for attr in attrs if isinstance(attr, UniqueConstraint)]
+        attrs['_referenceables'] =  [attr for attr in attrs if isinstance(attr, Field) and attr.foreign]
+        attrs['_fields'] = [attr for attr in attrs if isinstance(attr, Field)]
+
         if not attrs.get(STORABLE_ENTITY_ATTR_NAME, None):
             # if no table name is given, deduce our own from the class name
             attrs[STORABLE_ENTITY_ATTR_NAME] = dbfy(name)
 
+        # Add two class attributes:
+        #   id as a SerialField
+        #   _fields to hold the mapping from attribute name to field, populated through the Field __set_name__ method
+        pk_field_name = attrs.get(STORABLE_PK_FIELD_ATTR) or STORABLE_PK_DEFAULT_ATTR
+
+        attrs.update(
+            {'_fields': {}, pk_field_name: SerialField(), '_pk_field_name': pk_field_name})
+
         # create the class
         cls = super().__new__(mcs, name, bases, attrs)
 
-        if name != "Storable":
-            # Decorate the __init__ call of the Storable subclass with a call to cls.init_class as last instruction
-            basic_init = cls.__init__
-            def decorated_init(self, *args, **kwargs):
-                basic_init(self, *args, **kwargs)
-                self.__class__.init_class(self)
-            cls.__init__ = decorated_init
+        # Add a reference to the class in each descriptor
+        for  attr in attrs:
+            if isinstance(attr, Field):
+                attr.owner_cls = cls
+
+        #if name != "Storable":
+        #    # Decorate the __init__ call of the Storable subclass with a call to cls.init_class as last instruction
+        #    basic_init = cls.__init__
+        #    def decorated_init(self, *args, **kwargs):
+        #        basic_init(self, *args, **kwargs)
+        #        self.__class__.init_class(self)
+        #    cls.__init__ = decorated_init
 
         return cls
 
@@ -155,33 +389,34 @@ class Storable(ABC, metaclass=StorableMeta):
         '''
         instance_class = type(instance)
         if not instance_class._class_initialized:
-            if instance_class._uniqueFields is None:
-                instance_class._uniqueFields = []
-                for k, v in instance.__dict__.items():
-                    if isinstance(v, UniqueField):
-                        instance_class._uniqueFields.append(k)
+            #if instance_class._uniqueFields is None:
+            #    instance_class._uniqueFields = []
+            #    for k, v in instance.__dict__.items():
+            #        if isinstance(v, UniqueField):
+            #            instance_class._uniqueFields.append(k)
 
             if instance_class._uniqueConstraints is None:
                 instance_class._uniqueConstraints = {k for k,v in instance.__dict__.items() if isinstance(v, UniqueConstraint)}
-            if instance_class._fields is None:
-                instance_class._fields = []
-                for k, v in instance.__dict__.items():
-                    if isinstance(v, Field):
-                        instance_class._fields.append(k)
-            if instance_class._referenceables is None:
-                instance_class._referenceables = []
-                for k, v in instance.__dict__.items():
-                    if isinstance(v, Referenceable):
-                        v._name = k
-                        instance_class._referenceables.append(k)
+
+            #if instance_class._fields is None:
+            #    instance_class._fields = []
+            #    for k, v in instance.__dict__.items():
+            #        if isinstance(v, Field):
+            #           instance_class._fields.append(k)
+            #if instance_class._referenceables is None:
+            #    instance_class._referenceables = []
+            #    for k, v in instance.__dict__.items():
+            #        if isinstance(v, Referenceable):
+            #            v._name = k
+            #            instance_class._referenceables.append(k)
 
             #print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._uniqueFields}\n   Unique Constraints: {instance_class._uniqueConstraints}\n   Referenceables: {instance_class._referenceables}\n   Fields: {instance_class._fields}")
             instance_class._class_initialized = True
 
-    def __init__(self, store_mgr=None, id=None):
+    def __init__(self, id=None):
         super().__init__()
         #self.store_mgr = store_mgr or Betty()
-        self._id = UniqueField(id, required=False)
+        self.__setattr__(self.pk_field_name, id) # todo Check that this pass through the descriptor __set__
 
     @property
     def id(self):
@@ -207,7 +442,8 @@ class Storable(ABC, metaclass=StorableMeta):
         # Is a unique key filled in? If yes use it
         for uniqueFieldName in self._uniqueFields:
             # For each Unique fields, we add the '=' condition if the field has a value
-            if (field:=self.__getattribute__(uniqueFieldName)) is not None:
+            field = self.__getattribute__(uniqueFieldName)
+            if field is not None:
                 if field._value is not None:
                     conditions.append(sql_store.wrap_condition(field.col_name() or dbfy(uniqueFieldName), '=', field._value))
 

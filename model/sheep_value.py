@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from .storable import Storable, Referenceable, Field
+from .storable import Storable, Many2OneField, IntegerField
 from .tournament import Tournament
 from .team import Team
 #from SqlStore import SqlStore
@@ -7,16 +7,18 @@ from .team import Team
 class SheepValue(Storable):
     _table_ = "sheep_value"
 
-    def __init__(self, store=None, team:Team|int=None, tournament:Tournament|int=None, sheep_value:int=None, id:int|None=None):
-        super().__init__(store, id)
-        self._team = Referenceable(Team, team)
-        #self._team_id = team.id
-        self._tournament = Referenceable(Tournament, tournament)
-        #self._tournament_id = tournament.id
-        self._sheep_value = Field(sheep_value)
+    team = Many2OneField(Team.id)
+    tournament =  Many2OneField(Tournament.id)
+    sheep_value = IntegerField(check=lambda inst, x: x > 0)
+
+    def __init__(self, team:Team|int=None, tournament:Tournament|int=None, sheep_value:int=None, id:int|None=None):
+        super().__init__(id)
+        self.team = team
+        self.tournament = tournament
+        self.sheep_value = sheep_value
 
     def __str__(self):
-        return f'{self._team.name} {self.tournament.name} Sheep Value: {self._sheep_value}'
+        return f'{self.team.name} {self.tournament.name} Sheep Value: {self.sheep_value}'
 
     def __repr__(self):
         return super().__repr__()
@@ -31,14 +33,14 @@ class SheepValue(Storable):
 
     #property
     def tournament_id(self):
-        return self._tournament._id if isinstance(self._tournament, Tournament) else 0
+        return self.tournament._id if isinstance(self.tournament, Tournament) else 0
     #property
     def team_id(self) -> int|None:
-        return self._team._id if isinstance(self._team, Team) else 0
+        return self.team._id if isinstance(self.team, Team) else 0
 
     #property
     def team_name(self):
-        return self._team._name if isinstance(self._team, Team) else f"Team {self.team_id}"
+        return self.team.name if isinstance(self.team, Team) else f"Team {self.team_id}"
 
 
 if __name__ == '__main__':

@@ -191,8 +191,8 @@ def compute_ranking():
             print(f"{ranking:3} {bettor_score[0]._nickname._value:20} {bettor_score[1]:3} points")
             r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0])
             r.load()
-            r._rank._value=ranking
-            r._score._value=bettor_score[1]
+            r.rank._value=ranking
+            r.score._value=bettor_score[1]
             r.save()
 
         # Handle the bettor with no bet yet
@@ -201,8 +201,8 @@ def compute_ranking():
             print(f"{ranking:3} {nickname:20} 0 points")
             r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=id)
             r.load()
-            r._rank._value=ranking
-            r._score._value=0
+            r.rank._value=ranking
+            r.score._value=0
             r.save()
 
 

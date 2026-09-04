@@ -1,9 +1,17 @@
-from model.storable import Storable, Field, UniqueField, Referenceable, DbText
+from model.storable import Storable, Field, UniqueField, CharField, Many2OneField
 from model.tournament import Tournament
 
 
 class Phase(Storable):
+    # Model -----------------------------------------------------------------
+
     _table_ = "phase"
+
+    name = CharField()
+    tournament = Many2OneField(Tournament.id)
+    state = CharField(required=True)
+    scoring = CharField()
+
     """
     id SERIAL PRIMARY KEY,
     {cls.references_by_id(Tournament)},
@@ -11,26 +19,26 @@ class Phase(Storable):
     state TEXT NOT NULL,
     scoring TEXT
     """
-    def __init__(self, store=None, name:str='', tournament:Tournament|int=None, state:str='', scoring:str=''):
-        super().__init__(store)
-        self._name = Field(name, DbText)
-        self._tournament = Referenceable(Tournament, tournament)
+    def __init__(self, name:str='', tournament:Tournament|int=None, state:str='', scoring:str=''):
+        super().__init__()
+        self.name = name
+        self.tournament = tournament
         #self._tournament_id = tournament._id
-        self._state = Field(state, DbText)
-        self._scoring = Field(scoring, DbText)
+        self.state = state
+        self.scoring = scoring
 
     def __str__(self):
-        return f'Phase {self._name}'
+        return f'Phase {self.name}'
 
     def __repr__(self):
         return super().__repr__()
 
     @property
     def name(self):
-        return self._name
+        return self.name
     @name.setter
     def name(self, v):
-        self._name = v or "unnamed" + str(id(self))
+        self.name = v or "unnamed" + str(id(self))
 
     def tournament_id(self):
-        return self._tournament.id
+        return self.tournament.id
