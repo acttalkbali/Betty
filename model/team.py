@@ -1,25 +1,27 @@
 from datetime import datetime, timedelta
-from .storable import Storable, Field, DbText, UniqueField
+from .storable import Storable, CharField
 
 class Team(Storable):
     _table_ = "team"
+    name = CharField(required=True, unique=True)
 
-    def __init__(self, store=None, name:str|None=None, id:int|None=None):
-        super().__init__(store, id)
-        self._name = UniqueField(name, DbText)
+    def __init__(self, name:str|None=None, id:int|None=None):
+        super().__init__(id)
+        self.name = name
+        #self._tournament = tournament
 
     def __str__(self):
-        return f'{self._name or self._id}'
+        return f'{self.name or self._id}'
 
     def __repr__(self):
         return super().__repr__()
 
     @property
     def name(self):
-        return self._name
+        return self.name
     @name.setter
     def name(self, v):
-        self._name = v or "unnamed" + str(id(self))
+        self.name = v or "unnamed" + str(id(self))
 
     #property
     def tournament_id(self):
