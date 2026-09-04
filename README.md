@@ -42,95 +42,101 @@ Teams of bettor (**bteam**) can be constituted by the **tournament admin** so th
 
 ```mermaid
 erDiagram
-TOURNAMENT  ||--|{  PHASE  : made_of
-TEAM  ||--|{  PHASE  : participates
-PHASE  ||--|{  BETTABLE  : contains
-BTEAM  ||--o{  BETTOR  : contains
-BETTOR  ||--o|  BET  : prediction
-BETTOR o|--o| SHEEP_LIVESTOCK  : owns
-SHEEP_LIVESTOCK  ||--||  TEAM  : supports
-SHEEP_VALUE  o|--|| TOURNAMENT  : applies_to
-SHEEP_VALUE  o|--|| TEAM  : applies_to
-BET  ||--||  BETTABLE  : on
-BETTABLE  ||--|{  TEAM  : involves
-SCORING_RULE  ||--||  PHASE  : applies_to
-PARTICIPATION  ||--o{  TOURNAMENT  : concerns
-BETTOR  ||--o{  PARTICIPATION  : has
-RANKING  ||--o{  BETTOR  : ranks
-TOURNAMENT  ||--o{  RANKING  : ranking
 
-TOURNAMENT  {
-int id
-string name
-date start_dt
-date end_dt
-string state  "open|running|complete"
-int sheep_credit
-}
-BETTABLE  {
-int id
-int phase_id
-int team_a_id
-int team_b_id
-time start_dt
-string state  "open|running|complete"
-string outcome
-}
-BETTOR  {
-string id
-string name
-string nickname
-string email
-string pwd
-}
-BET  {
-int id
-int bettor_id
-int bettable_id
-string prediction
-float score
-}
-TEAM  {
-int id
-string name
-int tournament_id
-}
-PHASE  {
-int id
-string name
-}
-BTEAM  {
-int id
-string name
-}
-SHEEP_LIVESTOCK  {
-int id
-int participation_id
-int team_id
-int qty
-}
-SHEEP_VALUE  {
-int id
-int tournament_id
-int team_id
-int sheep_value
-}
-SCORING_RULE  {
-int id
-int phase_id
-string prediction
-int score
-}
-PARTICIPATION  {
-int id
-int tournament_id
-int bettor_id
-}
-RANKING  {
-int id
-int tournament_id
-int bettor_id
-int score
-int ranking
-}
-```mermaid
+    TOURNAMENT ||--|{ PHASE : made_of
+    TEAM ||--|{ PHASE : participates
+    PHASE ||--|{ BETTABLE : contains
+    BTEAM ||--o{ BETTOR : contains
+    BETTOR ||--o| BET : prediction
+    BETTOR o|--o| SHEEP_LIVESTOCK : owns
+    SHEEP_LIVESTOCK ||--|| TEAM : supports
+    SHEEP_VALUE o|--|| TOURNAMENT : applies_to
+    SHEEP_VALUE o|--|| TEAM : applies_to
+    BET ||--|| BETTABLE : on
+    BETTABLE ||--|{ TEAM : involves
+    SCORING_RULE ||--|| PHASE : applies_to
+    PARTICIPATION ||--o{ TOURNAMENT : concerns
+    BETTOR ||--o{ PARTICIPATION : has
+    RANKING ||--o{ BETTOR : ranks
+    TOURNAMENT ||--o{ RANKING : ranking
+    TOURNAMENT {
+        int id
+        string name
+        date start_dt
+        date end_dt
+        string state "open|running|complete"
+        int sheep_credit
+    }
+
+    BETTABLE {
+        int id
+        int phase_id
+        int team_a_id
+        int team_b_id
+        time start_dt
+        string state "open|running|complete"
+        string outcome
+    }
+    BETTOR {
+        string id
+        string name
+        string nickname
+        string email
+        string pwd
+    }
+    BET {
+        int id
+        int bettor_id
+        int bettable_id
+        string prediction
+        float score
+    }
+    TEAM {
+        int id
+        string name
+        int tournament_id
+    }
+    PHASE {
+        int id
+        string name
+    }
+    BTEAM {
+        int id
+        string name
+    }
+    SHEEP_LIVESTOCK {
+        int id
+        int participation_id
+        int team_id
+        int qty
+    }
+    SHEEP_VALUE {
+        int id
+        int tournament_id
+        int team_id
+        int sheep_value
+    }
+
+    SCORING_RULE {
+        int id
+        int phase_id
+        string prediction
+        int score
+    }
+
+    PARTICIPATION {
+        int id
+        int tournament_id
+        int bettor_id
+    }
+
+    RANKING {
+        int id
+        int tournament_id
+        int bettor_id
+        int score
+        int ranking
+    }
+```
+
+
