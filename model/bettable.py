@@ -25,16 +25,16 @@ class Bettable(Storable):
     state TEXT NOT NULL,
     outcome TEXT
     """
-    def __init__(self, store=None, phase: Phase|int=None, team_a: Team|int=None, team_b: Team|int=None, start_dt: datetime=None, outcome:int|None=None, id:int|None=None):
+    def __init__(self, store=None, phase: Phase|int|None=None, team_a: Team|int|None=None, team_b: Team|int|None=None, start_dt: datetime|None=None, outcome:int|None=None, id:int|None=None):
         super().__init__(store, id)
         self._name = f"{phase.name if isinstance(phase,Phase) else str(phase)}:{team_a.name if isinstance(team_a, Team) else str(team_a)} - {team_b.name if isinstance(team_b, Team) else str(team_b)}"
         self._phase = Referenceable(Phase, phase)
         self._a_team = Referenceable(Team, team_a)
         self._b_team = Referenceable(Team, team_b)
         self._start_dt = Field(start_dt, DbDate, required=False) # Todo required=True?
-        self._state = Field(None if start_dt is None else BETTABLE_STATE_OPEN if start_dt > datetime.now(timezone.utc) else BETTABLE_STATE_RUNNING, DbText, dflt=BETTABLE_STATE_OPEN)
+        self._state = None #Field(None if start_dt is None else BETTABLE_STATE_OPEN if start_dt > datetime.now(timezone.utc) else BETTABLE_STATE_RUNNING, DbText, dflt=BETTABLE_STATE_OPEN)
         self._outcome = Field(outcome, DbText, required=False)
-        self._constraint = UniqueConstraint(["_phase", "_team_a", "_team_b"])
+        self._constraint = UniqueConstraint(["_phase", "_a_team", "_b_team"])
 
     # built_ins -----------------------------------------------------------------
 
