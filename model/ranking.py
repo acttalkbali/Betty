@@ -6,7 +6,7 @@ from datetime import datetime
 
 class Ranking(Storable):
     _table_ = "ranking"
-    def __init__(self, store=None, tournament: Tournament|int=None, bettor: Bettor|int=None, rank:int|None=None, score:int|None=None):
+    def __init__(self, store=None, tournament: Tournament|int|None=None, bettor: Bettor|int|None=None, rank:int|None=None, score:int|None=None):
         super().__init__(store)
         self._rank = Field(rank)
         self._bettor = Referenceable(Bettor, bettor)

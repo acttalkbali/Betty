@@ -11,8 +11,8 @@ class Phase(Storable):
     state TEXT NOT NULL,
     scoring TEXT
     """
-    def __init__(self, store=None, name:str='', tournament:Tournament|int=None, state:str='', scoring:str=''):
-        super().__init__(store)
+    def __init__(self, store=None, name:str|None=None, tournament:Tournament|int|None=None, state:str|None=None, scoring:str|None=None, id:int|None=None):
+        super().__init__(store, id)
         self._name = Field(name, DbText)
         self._tournament = Referenceable(Tournament, tournament)
         self._state = Field(state, DbText)
