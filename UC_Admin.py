@@ -185,7 +185,7 @@ def compute_ranking():
             # Select all bettor predictions for that bettable
             bets, _ = Bet(bettable=bettable._id, bettor=Bettor()).load_all()
             for bet in bets:
-                scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable._outcome)]
+                scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable._outcome._value)]
 
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
@@ -238,6 +238,18 @@ def show_ranking():
                 prv_score = actual_rank
                 actual_rank = rank + 1
             print(f"{actual_rank:3} {ranking._bettor._referred._nickname._value:20} {ranking._score._value:3} points")
+
+def show_tournament_bets():
+    """
+    UC Tournament bets:
+    PRE tournament T selected
+    The bettor choose 'tournament bets' from the available actions.
+    The tournament's current bets are listed.
+    """
+    if UiAdminContext().tournament_selected:
+        bets, attr_dicts = Bet(bettable=Bettable(phase=Phase(tournament=UiAdminContext().tournament_selected_id), team_a=Team(), team_b=Team()), bettor=Bettor()).load_all(ordering=[('start_dt', 'ASC'), ('bettor_id', 'ASC')])
+        for bet in bets:
+            print(bet.show())
 
 def tournament_participation(silent=False) -> list[(int,str,str,int)]:
     """
@@ -313,6 +325,7 @@ if __name__ == '__main__':
     options = [('Provide/Amend the outcome of a bettable', lambda : input_bettable_outcome()),
                ('Open tournament', lambda : set_tournament_state()),
                ('Tournament participation', tournament_participation),
+               ('Tournament bets', show_tournament_bets),
                ('Compute ranking', lambda: compute_ranking()),
                ('Show ranking', lambda: show_ranking()),
                ('Status', lambda : betty_status()),

@@ -243,7 +243,7 @@ def bet(bettor:Bettor):
                 team_a.load()
                 team_b.load()
                 bettable = Bettable(phase=attr_dict['phase_id'], team_a=team_a, team_b=team_b, start_dt=attr_dict['start_dt'], id=attr_dict['id'])
-                bet = Bet(bettor=bettor, bettable=bettable)
+                bet = Bet(bettor=bettor._id._value, bettable=Bettable(id=bettable._id._value, start_dt=bettable._start_dt._value))
                 result = bet.load() # load the bet if it already exists
                 choices.append((bettable,bet))
                 #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")

@@ -1,6 +1,9 @@
+from functools import reduce
+
 import psycopg
 import psycopg.rows
-import os
+
+from model.join import Join
 
 class SqlStore:
 
@@ -137,7 +140,7 @@ class SqlStore:
         return id
 
 
-    def load(self, pycls, joins, join_columns:list, condition: str|None, ordering:str|None): # todo hide SQL-specifics in sql_store
+    def load(self, pycls, joins: list[Join], condition: str|None, ordering:str|None): # todo hide SQL-specifics in sql_store
         """
         loads all records for the model entity matching the specified condition from the DB
         :param pycls: The python model class
@@ -147,10 +150,11 @@ class SqlStore:
         """
         table = pycls._table_
         if table:
+            all_joined_columns = reduce(lambda acc, x: acc + x, [join.joined_col_names or [] for join in joins], [])
             table_joins = ' '.join([" JOIN {} {} ON {}.id={}".format(
-                                    joined._table_, selector, selector, (value and f"'{value}'") or f"{selector}_id")
-                                for joined, selector, value in joins])
-            query = f"SELECT {table}.*{(', '+(', '.join(join_columns))) if join_columns else ''}" + f" FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
+                                    join.joined_cls._table_, join.src_col_name, join.src_col_name, (join.value and f"'{join.value}'") or f"{join.src_col_name}_id")
+                                for join in joins])
+            query = f"SELECT {table}.*{(', '+(', '.join(all_joined_columns))) if all_joined_columns else ''}" + f" FROM {table}" + table_joins + (f" WHERE {condition}" if condition else '') + (f" ORDER BY {ordering}" if ordering else '') + ";"
             return SqlStore().run_query(query)
         else:
             return None
