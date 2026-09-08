@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from importlib.metadata import requires
 
-from .storable import Storable, Referenceable, Field, CharField, Many2OneField, DateField, DbDate, DbText, UniqueConstraint
+from .storable import Storable, Field, CharField, Many2OneField, DateField, UniqueConstraint
 from .phase import Phase
 from .team import Team
 
@@ -17,8 +17,8 @@ class Bettable(Storable):
     _table_ = "bettable"
 
     phase = Many2OneField(Phase.id)
-    a_team = Many2OneField(Team.id, check=lambda inst, x: x != inst.b_team)
-    b_team = Many2OneField(Team.id, check=lambda inst, x: x != inst.a_team)
+    a_team = Many2OneField(Team.id)
+    b_team = Many2OneField(Team.id, check=lambda inst, x: x is None or inst.a_team is None or x != inst.a_team)
     start_dt = DateField(required=False) # # Todo required=True?
     state = CharField(default_value=BETTABLE_STATE_OPEN)
     outcome = CharField(required=False)

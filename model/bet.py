@@ -1,4 +1,4 @@
-from .storable import Storable, UniqueField, Field, Many2OneField, CharField, FloatField, Referenceable, UniqueConstraint
+from .storable import Storable, Field, Many2OneField, CharField, FloatField, UniqueConstraint
 from .bettor import Bettor
 from .bettable import Bettable
 
@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 
 
 class Bet(Storable):
+    _table_ = 'bet'
+
     bettor = Many2OneField(Bettor.id, required=True)
     bettable = Many2OneField(Bettable.id, required=True)
     prediction = CharField(required=True)

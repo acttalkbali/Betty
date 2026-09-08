@@ -3,6 +3,7 @@ from .storable import Storable, CharField
 
 class Team(Storable):
     _table_ = "team"
+
     name = CharField(required=True, unique=True)
 
     def __init__(self, name:str|None=None, id:int|None=None):

@@ -1,4 +1,4 @@
-from .storable import Storable, Field, DbText, UniqueField, CharField
+from .storable import Storable, Field, CharField
 
 
 class Bettor(Storable):
@@ -7,7 +7,7 @@ class Bettor(Storable):
     name = CharField(unique=True)
     nickname = CharField(unique=True)
     email = CharField(unique=True)
-    pwd = CharField(unique=True) # todo Should not be stored in the DB
+    pwd = CharField(unique=False) # todo Should not be stored in the DB
 
     def __init__(self, name=None, pwd=None, email=None, nickname=None, id:int|None=None):
         super().__init__()

@@ -4,7 +4,6 @@ from .storable import Storable, Many2OneField, Field, IntegerField
 
 
 class SheepLivestock(Storable):
-
     # Model -----------------------------------------------------------------
     _table_ = "sheep_livestock"
     """

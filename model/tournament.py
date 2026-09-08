@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from .storable import Storable, DbDate, Field, CharField, DateField, UniqueField, IntegerField, DbText, StorableMeta
+from .storable import Storable, Field, CharField, DateField, IntegerField, StorableMeta
 
 #from SqlStore import SqlStore
 
@@ -12,9 +12,9 @@ class Tournament(Storable):
     _table_ = "tournament"
 
     name = CharField(unique=True)
-    start_dt = DateField(check=lambda self, x: self.end_dt is None or x <= self.end_dt)
+    start_dt = DateField()
     end_dt = DateField(check=lambda self, x: self.start_dt is None or x >= self.start_dt)
-    state = CharField(TOURNAMENT_STATE_LOCKED)
+    state = CharField(default_value=TOURNAMENT_STATE_LOCKED)
     sheep_credit = IntegerField(default_value=500) # todo 0 as default?
 
     def __init__(self, id:int|None=None, name:str|None=None, start_date:datetime|None=None, end_date:datetime|None=None, sheep_credit:int=500):
@@ -31,30 +31,30 @@ class Tournament(Storable):
     def __repr__(self):
         return super().__repr__()
 
-    @property
-    def start_dt(self):
-        return self.start_dt
-    @start_dt.setter
-    def start_dt(self, value : datetime):
-        """
-        start date is changed only if it occurs before a set end date
-        """
-        if self.start_dt == self.end_dt:
-            self.end_dt = value
-        else:
-            if self.start_dt < self.end_dt:
-                self.start_dt = value
+    #@property
+    #def start_dt(self):
+    #    return self.start_dt
+    #@start_dt.setter
+    #def start_dt(self, value : datetime):
+    #    """
+    #    start date is changed only if it occurs before a set end date
+    #    """
+    #    if self.start_dt == self.end_dt:
+    #        self.end_dt = value
+    #    else:
+    #        if self.start_dt < self.end_dt:
+    #            self.start_dt = value
 
-    @property
-    def end_dt(self):
-        return self.start_dt
-    @end_dt.setter
-    def end_dt(self, value : datetime):
-        """
-        end date is set only if it occurs on or after the start date
-        """
-        if value >= self.start_dt: #
-            self.end_dt = value
+    #@property
+    #def end_dt(self):
+    #    return self.start_dt
+    #@end_dt.setter
+    #def end_dt(self, value : datetime):
+    #    """
+    #    end date is set only if it occurs on or after the start date
+    #    """
+    #    if value >= self.start_dt: #
+    #        self.end_dt = value
 
 if __name__ == '__main__':
     from .betty import Betty
