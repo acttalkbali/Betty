@@ -6,7 +6,6 @@ from datetime import datetime
 
 class Ranking(Storable):
     # Model -----------------------------------------------------------------
-
     _table_ = "ranking"
 
     rank = IntegerField()

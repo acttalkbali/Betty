@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from .storable import Storable, Many2OneField, FloatField, IntegerField, Referenceable
+from .storable import Storable, Many2OneField, FloatField, IntegerField
 from .betty import *
 
 #from SqlStore import SqlStore
@@ -9,6 +9,7 @@ TOURNAMENT_STATE_RUNNING = "RUNNING"
 TOURNAMENT_STATE_CLOSED = "CLOSED"
 
 class Participation(Storable):
+    _table_ = 'participation'
 
     bettor = Many2OneField(Bettor.id)
     tournament = Many2OneField(Tournament.id)

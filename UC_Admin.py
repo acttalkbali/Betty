@@ -99,9 +99,9 @@ def tournament_selection(states:list[str]=None) -> int:
         else:
             selection = 0
         tr = tournaments[selection]
-        UiAdminContext().tournament_selected_name = tr._name._value
-        UiAdminContext().tournament_selected_id = tr._id._value
-        UiAdminContext().tournament_selected = Tournament(name=tr._name, id=tr._id)
+        UiAdminContext().tournament_selected_name = tr.name
+        UiAdminContext().tournament_selected_id = tr.id
+        UiAdminContext().tournament_selected = Tournament(name=tr.name, id=tr.id)
         print(f"Selected tournament : {UiAdminContext().tournament_selected_id}")
         return selection
     return -1
@@ -167,7 +167,8 @@ def compute_ranking():
         #    f"WHERE b.phase_id = p.id AND p.tournament_id = {UiAdminContext().tournament_selected_id} AND b.outcome IS NOT NULL "
         #    f"ORDER BY b.start_dt ASC")
         phase = Phase(tournament=UiAdminContext().tournament_selected_id)
-        bettables, bettable_attr_dicts = Bettable(phase=phase).load_all(condition='outcome IS NOT NULL', ordering=[('start_dt', 'ASC')])
+        bettable = Bettable(phase=phase)
+        bettables, bettable_attr_dicts = bettable.load_all(condition='outcome IS NOT NULL', ordering=[('start_dt', 'ASC')])
 
         scoring = dict()
         bet_score = dict()
@@ -183,7 +184,7 @@ def compute_ranking():
 
         for bettable in bettables:
             # Select all bettor predictions for that bettable
-            bets, _ = Bet(bettable=bettable._id, bettor=Bettor()).load_all()
+            bets, _ = Bet(bettable=bettable.id, bettor=Bettor()).load_all()
             for bet in bets:
                 scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable._outcome)]
 

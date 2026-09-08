@@ -1,4 +1,4 @@
-from model.storable import DbFieldType, Field, Storable, STORABLE_ENTITY_ATTR_NAME
+from model.storable import Field, Storable, STORABLE_ENTITY_ATTR_NAME
 from .bet import Bet
 from .bettable import Bettable
 from .bettor import Bettor

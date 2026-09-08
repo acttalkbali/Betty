@@ -1,10 +1,9 @@
-from model.storable import Storable, Field, UniqueField, CharField, Many2OneField
+from model.storable import Storable, Field, CharField, Many2OneField
 from model.tournament import Tournament
 
 
 class Phase(Storable):
     # Model -----------------------------------------------------------------
-
     _table_ = "phase"
 
     name = CharField()
@@ -33,12 +32,12 @@ class Phase(Storable):
     def __repr__(self):
         return super().__repr__()
 
-    @property
-    def name(self):
-        return self.name
-    @name.setter
-    def name(self, v):
-        self.name = v or "unnamed" + str(id(self))
+    # @property
+    # def name(self):
+    #    return self.name
+    # @name.setter
+    # def name(self, v):
+    #    self.name = v or "unnamed" + str(id(self))
 
     def tournament_id(self):
         return self.tournament.id
