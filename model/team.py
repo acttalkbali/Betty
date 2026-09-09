@@ -17,12 +17,12 @@ class Team(Storable):
     def __repr__(self):
         return super().__repr__()
 
-    @property
-    def name(self):
-        return self.name
-    @name.setter
-    def name(self, v):
-        self.name = v or "unnamed" + str(id(self))
+    #@property
+    #def name(self):
+    #    return self.name
+    #@name.setter
+    #def name(self, v):
+    #    self.name = v or "unnamed" + str(id(self))
 
     #property
     def tournament_id(self):

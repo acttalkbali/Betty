@@ -33,14 +33,15 @@ def input_outcome(attr_dict):
     bettable.load()
     outcome_selected = input_selection([f"{attr_dict['a_team_name']} wins", f"{attr_dict['b_team_name']} wins", "draw"])
     if outcome_selected >= 0:
+        outcome = None
         if outcome_selected == 0:
             outcome = BETTABLE_OUTCOME_A_WINS
         if outcome_selected == 1:
             outcome = BETTABLE_OUTCOME_B_WINS
         elif outcome_selected == 2:
             outcome = BETTABLE_OUTCOME_DRAW # Draw
-        bettable.outcome._value = outcome
-        bettable.state._value = BETTABLE_STATE_CLOSED
+        bettable.outcome = outcome
+        bettable.state = BETTABLE_STATE_CLOSED
         attr_dict['outcome'] = outcome
         bettable.save()
 
