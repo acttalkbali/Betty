@@ -76,7 +76,7 @@ def login(bettor_name='', bettor_pwd='') -> Bettor|None:
     result = bettor.load()
     if len(result)==1:
         # bettor filled-in successfully
-        if bettor.pwd._value != bettor_pwd:
+        if bettor.pwd != bettor_pwd:
             "Incorrect password. Login denied"
             UiBettorContext().logged_in = None
             return None
@@ -188,7 +188,7 @@ def buy_sheeps(bettor:Bettor):
                 choices = []
                 participation = Participation(id=UiBettorContext().participation_id)
                 participation.load()
-                credit = participation.credit._value #UiBettorContext().credit
+                credit = participation.credit #UiBettorContext().credit
                 ui.info(f"Your credit: {credit}")
                 for attr_dict in attr_dicts:
                     max_sheeps = credit // int(attr_dict['sheep_value'])
@@ -205,7 +205,7 @@ def buy_sheeps(bettor:Bettor):
                     sheep_livestock = SheepLivestock(sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=n)
                     sheep_livestock.save()
                     livestock[attr_dicts[selection]['name']] = n
-                    participation.credit._value = UiBettorContext().credit
+                    participation.credit = UiBettorContext().credit
                     participation.save()
                 else:
                     break
@@ -247,13 +247,13 @@ def bet(bettor:Bettor):
                 result = bet.load() # load the bet if it already exists
                 choices.append((bettable,bet))
                 #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")
-            selection = ui.input_selection(choices, lambda x: f"{x[0]._start_dt} {x[0]._a_team._referred._name._value} - {x[0]._b_team._referred._name._value}" + (f" << {x[1]._prediction._value} >>" if x[1]._prediction._value else ''))
+            selection = ui.input_selection(choices, lambda x: f"{x[0].start_dt} {x[0].a_team.name} - {x[0].b_team.name}" + (f" << {x[1].prediction} >>" if x[1].prediction else ''))
 
             if selection >= 0:
                 while (prediction:= input(f"{choices[selection][0]} result prediction (1=A wins | 2=B wins | 12=A or B wins | 10=A wins or draw | 20=B wins or draw | 0 draw): ").strip()) not in ['', '0', '1', '2', '12', '10', '20']:
                     pass # Not a valid entry, just try again
                 if prediction != '':
-                    choices[selection][1]._prediction._value = int(prediction)
+                    choices[selection][1].prediction = int(prediction)
                     choices[selection][1].save()
                     ui.info("Your prediction has been recorded")
         else:
@@ -326,7 +326,7 @@ def show_ranking(bettor:Bettor):
                     # Not an ex-aequo
                     prv_score = attr_dict['score']
                     ranking = rank + 1
-                print(f"{ranking:3} {attr_dict['nickname']:20} {attr_dict['score']:3} points")
+                print(f"{ranking:3} {attr_dict['nickname']:20} {attr_dict['score'] or 0:3} points")
 
 
 if __name__ == '__main__':

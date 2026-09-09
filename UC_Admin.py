@@ -95,7 +95,7 @@ def tournament_selection(states:list[str]=None) -> int:
         info("No tournament available")
     else:
         if len(tournaments) > 1:
-            selection = input_selection(tournaments, lambda tournament: tournament._name)
+            selection = input_selection(tournaments, lambda tournament: tournament.name)
         else:
             selection = 0
         tr = tournaments[selection]
@@ -116,16 +116,16 @@ def set_tournament_state():
     if not UiAdminContext().tournament_selected:
         tournament_selection()
     if UiAdminContext().tournament_selected:
-        print(f"{UiAdminContext().tournament_selected} : Current state is {UiAdminContext().tournament_selected._state}")
+        print(f"{UiAdminContext().tournament_selected} : Current state is {UiAdminContext().tournament_selected.state}")
         states = [("OPEN tournament", tournament.TOURNAMENT_STATE_OPEN),
                   ("CLOSE tournament", tournament.TOURNAMENT_STATE_CLOSED),
                   ("LOCK tournament", tournament.TOURNAMENT_STATE_LOCKED),
                   ("UNLOCK tournament", tournament.TOURNAMENT_STATE_OPEN) # todo goto open/close depending on date?
                   ]
         while (selection := input_selection(states, lambda x: x[0])) >= 0:
-            UiAdminContext().tournament_selected._state._value = states[selection][1]
+            UiAdminContext().tournament_selected.state = states[selection][1]
             UiAdminContext().tournament_selected.save()
-            print(f"{UiAdminContext().tournament_selected} : state is {UiAdminContext().tournament_selected._state}")
+            print(f"{UiAdminContext().tournament_selected} : state is {UiAdminContext().tournament_selected.state}")
 
 def betty_status():
     """
@@ -184,9 +184,10 @@ def compute_ranking():
 
         for bettable in bettables:
             # Select all bettor predictions for that bettable
-            bets, _ = Bet(bettable=bettable.id, bettor=Bettor()).load_all()
+            bet_proto = Bet(bettable=bettable.id, bettor=Bettor())
+            bets, _ = bet_proto.load_all()
             for bet in bets:
-                scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable._outcome)]
+                scoring[bet.bettor] = scoring.get(bet.bettor, 0) + bet_score[(bet.prediction, bettable.outcome)]
 
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
@@ -196,11 +197,11 @@ def compute_ranking():
                 # Not an ex-aequo
                 prv_score = bettor_score[1]
                 ranking = rank + 1
-            print(f"{ranking:3} {bettor_score[0]._nickname._value:20} {bettor_score[1]:3} points")
+            print(f"{ranking:3} {bettor_score[0].nickname:20} {bettor_score[1]:3} points")
             r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0])
             r.load()
-            r.rank._value=ranking
-            r.score._value=bettor_score[1]
+            r.rank = ranking
+            r.score = bettor_score[1]
             r.save()
 
         # Handle the bettor with no bet yet
@@ -209,10 +210,9 @@ def compute_ranking():
             print(f"{ranking:3} {nickname:20} 0 points")
             r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=id)
             r.load()
-            r.rank._value=ranking
-            r.score._value=0
+            r.rank = ranking
+            r.score = 0
             r.save()
-
 
 def show_ranking():
     """
@@ -232,13 +232,17 @@ def show_ranking():
         rankings, attr_dicts = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=Bettor()).load_all(ordering=[('rank', 'ASC')])
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
-        actual_rank = 1
+        actual_rank = 0
+        exaequos = 0
         for rank,ranking in enumerate(rankings):
-            if ranking._score._value != prv_score:
+            if ranking.score != prv_score:
                 # Not an ex-aequo
-                prv_score = actual_rank
-                actual_rank = rank + 1
-            print(f"{actual_rank:3} {ranking._bettor._referred._nickname._value:20} {ranking._score._value:3} points")
+                prv_score = ranking.score
+                actual_rank += 1 + exaequos
+                exaequos = 0
+            else:
+                exaequos += 1
+            print(f"{actual_rank:3} {ranking.bettor.nickname:20} {ranking.score or 0:3} points")
 
 def tournament_participation(silent=False) -> list[(int,str,str,int)]:
     """

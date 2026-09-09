@@ -45,7 +45,7 @@ class Bet(Storable):
     # storable -----------------------------------------------------------------
 
     def save(self):
-        if self.bettable._referred._start_dt._value > datetime.now().replace(tzinfo=timezone.utc):
+        if self.bettable.start_dt > datetime.now().replace(tzinfo=timezone.utc):
             super().save()
         else:
-            print(f"{__file__} Bet rejected: Bettable has already started ({self.bettable._referred._start_dt._value})")
+            print(f"{__file__} Bet rejected: Bettable has already started ({self.bettable.start_dt})")
