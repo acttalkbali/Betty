@@ -13,7 +13,7 @@ class Participation(Storable):
 
     bettor = Many2OneField(Bettor.id)
     tournament = Many2OneField(Tournament.id)
-    score = FloatField()
+    score = FloatField(required=False)
     credit = IntegerField()
 
     def __init__(self, bettor:Bettor=None, tournament:Tournament=None, score=0, credit=0, id=None):

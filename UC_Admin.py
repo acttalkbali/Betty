@@ -10,7 +10,7 @@ from model.bettor import Bettor
 from model.participation import Participation
 from model.phase import Phase
 from model.ranking import Ranking
-from model.storable import STORABLE_ORDER_DESC, joined_column
+from model.storable import STORABLE_ORDER_DESC, joined_column, Storable
 from model.team import Team
 from model.tournament import Tournament
 from model.queries import query_tournament_bettables, query_tournament_bettables_with_teams
@@ -157,6 +157,8 @@ def betty_status():
 def compute_ranking():
     """
     UC Tournament ranking:
+    We go through all bettables of the tournament.
+    We retrieve the bets for all those that have an outcome
     pre: OPEN tournament T selected
     """
     if UiAdminContext().tournament_selected_id:
@@ -168,7 +170,7 @@ def compute_ranking():
         #    f"ORDER BY b.start_dt ASC")
         phase = Phase(tournament=UiAdminContext().tournament_selected_id)
         bettable = Bettable(phase=phase)
-        bettables, bettable_attr_dicts = bettable.load_all(condition='outcome IS NOT NULL', ordering=[('start_dt', 'ASC')])
+        relevant_bettables, _ = bettable.load_all(condition='outcome IS NOT NULL', ordering=[('start_dt', 'ASC')])
 
         scoring = dict()
         bet_score = dict()
@@ -182,12 +184,14 @@ def compute_ranking():
         #    for bet in bets:
         #        scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable_attr_dict['outcome'])]
 
-        for bettable in bettables:
+        for bettable in relevant_bettables:
             # Select all bettor predictions for that bettable
             bet_proto = Bet(bettable=bettable.id, bettor=Bettor())
             bets, _ = bet_proto.load_all()
             for bet in bets:
-                scoring[bet.bettor] = scoring.get(bet.bettor, 0) + bet_score[(bet.prediction, bettable.outcome)]
+                scoring[bet.bettor.pk_value()] = scoring.get(bet.bettor.pk_value(), 0) + bet_score[(bet.prediction, bettable.outcome)]
+
+        participants = tournament_participation(silent=True)
 
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
@@ -197,17 +201,18 @@ def compute_ranking():
                 # Not an ex-aequo
                 prv_score = bettor_score[1]
                 ranking = rank + 1
-            print(f"{ranking:3} {bettor_score[0].nickname:20} {bettor_score[1]:3} points")
+            participant = participants[bettor_score[0]]
+            print(f"{ranking:3} {(participant[0] + ' alias ' + participant[1]):30} {bettor_score[1]:3} points")
             r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=bettor_score[0])
             r.load()
             r.rank = ranking
-            r.score = bettor_score[1]
+            r.score = bettor_score[1] or 0
             r.save()
 
         # Handle the bettor with no bet yet
         ranking += 1
-        for name, nickname, nbets, id in filter(lambda x: x[2]==0, tournament_participation(silent=True)):
-            print(f"{ranking:3} {nickname:20} 0 points")
+        for name, nickname, nbets, id in filter(lambda x: x[3] not in scoring, participants.values()):
+            print(f"{ranking:3} {(name + ' alias ' + nickname):30} {0.0:3} points")
             r = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=id)
             r.load()
             r.rank = ranking
@@ -242,9 +247,9 @@ def show_ranking():
                 exaequos = 0
             else:
                 exaequos += 1
-            print(f"{actual_rank:3} {ranking.bettor.nickname:20} {ranking.score or 0:3} points")
+            print(f"{actual_rank:3} {ranking.bettor.name + ' alias ' + ranking.bettor.nickname:30} {ranking.score or 0.0:3} points")
 
-def tournament_participation(silent=False) -> list[(int,str,str,int)]:
+def tournament_participation(silent=False) -> dict[int, tuple[str,str,int,int]]:
     """
     UC The admin get the list of a tournament's paticipants
     """
@@ -278,7 +283,7 @@ def tournament_participation(silent=False) -> list[(int,str,str,int)]:
         if not silent:
             for bet_stat in result:
                 print(f"   {bet_stat[0]} as {bet_stat[1]} : {bet_stat[2]} bets")
-        return result
+        return {res[3]: res for res in result}
 
 def quit()->int:
     """

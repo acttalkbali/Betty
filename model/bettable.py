@@ -46,16 +46,16 @@ class Bettable(Storable):
 
     # properties -----------------------------------------------------------------
 
-    @property
-    def phase_id(self):
-        return self.phase.id
+    #@property
+    #def phase_id(self):
+    #    return self.phase.id
 
-    @property
-    def a_team_id(self):
-        return self.a_team.id
+    #@property
+    #def a_team_id(self):
+    #    return self.a_team.id
 
-    @property
-    def b_team_id(self):
-        return self.b_team.id
+    #@property
+    #def b_team_id(self):
+    #    return self.b_team.id
 
     # storable -----------------------------------------------------------------
