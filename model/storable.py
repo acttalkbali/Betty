@@ -2,6 +2,7 @@ import copy
 import re
 from abc import ABC, ABCMeta
 from collections import OrderedDict
+from collections.abc import Callable
 from functools import reduce
 from datetime import datetime
 from typing import Any
@@ -46,25 +47,26 @@ DB_AUTO_INC = "SERIAL"
 MANY_TO_ONE_REPR = "*-|"
 ONE_TO_MANY_REPR = "|-*"
 ONE_TO_ONE_REPR = "|-|"
+MANY_TO_MANY_REPR = "*-*"
 
 class Field:
-    def __init__(self, unique:bool=False, foreign=None, default_value=None, required:bool=True, primary_key:bool=False, db_type:str=DB_INTEGER, check=None):
+    def __init__(self,
+                 unique:bool=False,
+                 foreign=None,
+                 default_value=None,
+                 required:bool=True,
+                 primary_key:bool=False,
+                 db_type:str=DB_INTEGER,
+                 check:Callable[Any,bool]=None):
         self.attribute_name = None
         self.sql_type = db_type # supplied by the subclass
         self.unique = unique
         self.foreign = foreign
         self.default_value = default_value
         self.required = required
-        self.primary_key = primary_key # todo needed?
+        self.primary_key = primary_key # todo needed? Not sure this is useful as every storable has a primary key field added by the metaclass
         self.check = check
         self.owner_cls = None
-
-    #def __init__(self, value, db_type=DbInt, name=None, required=True, dflt=None):
-    #    self._value = value
-    #    self._type = db_type
-    #    self._name = dbfy(name) if name else None
-    #    self._required = required
-    #    self._dflt = dflt
 
     def dbfy_value(self, value):
         return f"'{value}'"
@@ -160,6 +162,7 @@ class BooleanField(Field):
 
     def dbfy_value(self, value):
         return str(value).lower()
+
 
 class IntegerField(Field):
     def __init__(self, *args, **kwargs):
@@ -265,14 +268,8 @@ class Many2OneField(Field):
 
     def check_and_coerce(self, value) -> Any:
         if isinstance(value, self._target_field.owner_cls):
-
-            #self._referred = value
-            #self._id = value.__getattribute__(self._target_field.attribute_name)
-
-            #foreign_key_value = value.__getattribute__(value._pk_field_name)
-            #return self._target_field.check_and_coerce(foreign_key_value)
             return value # Every field of the instance should already have been checked and coerced
-        elif value is None: # we tolerate a None value as placeholder
+        elif value is None: # we tolerate a None value as a placeholder
             return value
         else:
             # an actual foreign key value. Check it against the target field
@@ -280,17 +277,6 @@ class Many2OneField(Field):
 
     def col_name(self):
         return self._name + '_id' # todo use target's pk attribute name, which may differ from 'id'
-
-    #@property
-    #def id(self):
-    #    if self._referred:
-    #        return self._referred.id
-    #    else:
-    #        return self._id
-
-    #@id.setter
-    #def id(self, value:int|None):
-    #    self._id._value = value
 
     def dbfy_name(self, attr_name=None):
         '''
@@ -302,30 +288,25 @@ class Many2OneField(Field):
         return super().__str__() + f"{MANY_TO_ONE_REPR}{self._target_field.owner_cls}"
 
 
-class One2OneField(Field):
-    def __init__(self, storable_cls, target_field:Field, db_type=DB_INTEGER, required=True, default_value=None, check=None):
-        super().__init__(db_type, required=required, default_value=default_value, unique=True, foreign=True, check=check)
-        self._storable_cls = storable_cls
-        self._target_field = target_field
-
-    def check_and_coerce(self, value) -> str:
-        '''
-        Verify the stringified version of the value isn't too long
-        :param value: the value to be checked
-        :return: the value coerced to a string
-        :exception ValueError: if the coerced value is longer than max_len
-        '''
-        if isinstance(value, Storable):
-            self._referred = value
-            self._id = value.getattr(self.target_field.attribute_name)
-            #self.store_mgr = referred.store_mgr
-        else:
-            self.foreign_value = self.target_field.check_and_coerce(value)
-            self._referred = None
-            #self.store_mgr = None
+class One2OneField(Many2OneField):
+    def __init__(self, target_field:Field, db_type=DB_INTEGER, required=True, default_value=None, check=None):
+        super().__init__(target_field=target_field, db_type=db_type, required=required, default_value=default_value, check=check)
 
     def __str__(self):
         return super().__str__() + f"{ONE_TO_ONE_REPR}{self._target_field.owner_cls}"
+
+
+class Many2ManyField(Field):
+    # todo To be implemented.
+    def __init__(self, target_field:Field, db_type=DB_INTEGER, required=True, default_value:Any=None, check=None, relation_table_name=None):
+        super().__init__(db_type=db_type, required=required, default_value=default_value, check=check)
+        self._target_field = target_field
+
+    def __str__(self):
+        return super().__str__() + f"{MANY_TO_MANY_REPR}{self._target_field.owner_cls}"
+
+    def check_and_coerce(self, value) -> Any:
+        raise NotImplementedError
 
 
 class UniqueConstraint:
@@ -341,7 +322,6 @@ class UniqueConstraint:
 
 class StorableMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
-        #print(f"Adding field attributes to class {name}")
         # Define class attributes
         entity_name = attrs.get(STORABLE_ENTITY_ATTR_NAME)
         if entity_name:
@@ -370,7 +350,6 @@ class StorableMeta(ABCMeta):
                 # if no table name is given, deduce our own from the class name
                 attrs[STORABLE_ENTITY_ATTR_NAME] = dbfy(name)
 
-
         # create the class
         cls = super().__new__(mcs, name, bases, attrs)
 
@@ -378,15 +357,6 @@ class StorableMeta(ABCMeta):
         for  attr in attrs:
             if isinstance(attr, Field):
                 attr.owner_cls = cls
-
-        #if name != "Storable":
-        #    # Decorate the __init__ call of the Storable subclass with a call to cls.init_class as last instruction
-        #    basic_init = cls.__init__
-        #    def decorated_init(self, *args, **kwargs):
-        #        basic_init(self, *args, **kwargs)
-        #        self.__class__.init_class(self)
-        #    cls.__init__ = decorated_init
-
         return cls
 
 def wrap_condition(attr:str, op:str, value:Any) -> str:
@@ -397,47 +367,10 @@ def wrap_condition(attr:str, op:str, value:Any) -> str:
 
 class Storable(ABC, metaclass=StorableMeta):
 
-    # class attributes
-    #_class_initialized = False
-    #_unique_fields = None
-    #_unique_constraints = None
-    #_fields = None
     entities = dict()
-
-    @classmethod
-    def init_class(cls, instance):
-        '''
-        Collect the name of the attributes which are Fields, uniqueFields or part of UniqueConstraints
-        '''
-        instance_class = type(instance)
-        if not instance_class._class_initialized:
-            #if instance_class._unique_fields is None:
-            #    instance_class._unique_fields = []
-            #    for k, v in instance.__dict__.items():
-            #        if isinstance(v, UniqueField):
-            #            instance_class._unique_fields.append(k)
-
-            if instance_class._unique_constraints is None:
-                instance_class._unique_constraints = {k for k,v in instance.__dict__.items() if isinstance(v, UniqueConstraint)}
-
-            #if instance_class._fields is None:
-            #    instance_class._fields = []
-            #    for k, v in instance.__dict__.items():
-            #        if isinstance(v, Field):
-            #           instance_class._fields.append(k)
-            #if instance_class._relation_fields is None:
-            #    instance_class._relation_fields = []
-            #    for k, v in instance.__dict__.items():
-            #        if isinstance(v, Referenceable):
-            #            v._name = k
-            #            instance_class._relation_fields.append(k)
-
-            #print(f"___ Initialized {type(instance)}\n   Unique Fields: {instance_class._unique_fields}\n   Unique Constraints: {instance_class._unique_constraints}\n   Referenceables: {instance_class._relation_fields}\n   Fields: {instance_class._fields}")
-            instance_class._class_initialized = True
 
     def __init__(self, id=None):
         super().__init__()
-        #self.store_mgr = store_mgr or Betty()
         self.__setattr__(self._pk_field_name, id) # todo Check that this pass through the descriptor __set__
 
     def pk_value(self):
@@ -453,11 +386,7 @@ class Storable(ABC, metaclass=StorableMeta):
     def id(self, value:int|None):
         self._id._value = value
 
-    #@property
-    #def store(self):
-    #    return self.store_mgr.get_store()
-
-    def derive_conditions_and_joins(self, consider_joins:bool, inspected:set[Storable], col_prefix:str='') -> tuple[list[str], list[Join]]:
+    def derive_conditions_and_joins(self, consider_joins:bool, inspected:set[tuple[Storable,str]], col_prefix:str='') -> tuple[list[str], list[Join]]:
         '''
         Derive
         a) equality conditions from filled-in regular or unique fields
@@ -465,22 +394,29 @@ class Storable(ABC, metaclass=StorableMeta):
         c) equality conditions from referenceables filled-in with an id only
         returns:
         '''
-        if self in inspected:
-            return [],[]
-        else:
-            inspected.add(self) # todo inspected should hold src_field_name instead
 
         conditions = []
         joins = []
 
-        # Is a unique key filled in? If yes use it
-        for uniqueFieldName, field in self._unique_fields.items():
-            # For each Unique fields, we add the '=' condition if the field has a value
-            field_value = self.__getattribute__(uniqueFieldName)
-            if field_value is not None:
-                conditions.append(wrap_condition(col_prefix + (field._name or dbfy(uniqueFieldName)), '=', field.dbfy_value(field_value)))
+        # Is the primary key filled in?
+        pk_value = self.pk_value()
+        if pk_value is None:
+            # If no, check for unique fields
+            # Is a unique key filled in? If yes use it
+            for uniqueFieldName, field in self._unique_fields.items():
+                # For each Unique fields, we add the '=' condition if the field has a value
+                field_value = self.__getattribute__(uniqueFieldName)
+                if field_value is not None:
+                    conditions.append(wrap_condition(col_prefix + (field._name or dbfy(uniqueFieldName)), '=', field.dbfy_value(field_value)))
+        else:
+            if not inspected: # top-call
+                # If no, use it
+                conditions.append(wrap_condition(self._pk_field_name, '=', pk_value))
 
         # Add an '=' condition for non-unique pre-filled fields?
+        # todo  Not a wonderful idea as it may result in a too coercive WHERE condition when the entity is the result of a load
+        # todo  Alternative to investigate: allow fields to be assigned a Condition object. The advantage is that the
+        # todo  condition cand be more generic, like eg a range/enum check
         #for fieldName, field in self._fields.items():
         #    if self._unique_fields.get(fieldName, None) is None and self.relation_fields.get(fieldName, None) is None:
         #        # For each regular fields, we add the '=' condition if the field has a value
@@ -510,37 +446,39 @@ class Storable(ABC, metaclass=StorableMeta):
                 if foreign_value is not None:
                     joined_cls = foreign_field._target_field.owner_cls
                     src_col_name = foreign_field.col_name()
-                    join = None
                     if isinstance(foreign_value, Storable):
                         # load related entities too
                         # if id is None, we'll join on attribute equality rather than on attribute value equality
-
                         joined_col_names = \
                             [f"{foreign_field._name}.{joined_field.col_name()}" #+ ('_id' if name in join.joined_cls._relation_fields else '')
                              f" AS {dbfy(foreign_field_name)}{STORABLE_TABLE_COLUMN_SEP}{joined_field.col_name()}" # + ('_id' if name in join.joined_cls._relation_fields else ''
                                  for joined_field_name, joined_field in joined_cls._fields.items()]
                         join = Join(joined_cls=joined_cls,
-                                    src_col_name=foreign_field._name,
+                                    src_field=foreign_field,
+                                    target_col_name=foreign_field.col_name(),
                                     value=getattr(foreign_value, foreign_value._pk_field_name),
                                     joined_col_names=joined_col_names)
-                        # Recurse on the referred entity
-                        ref_conditions, ref_joins = foreign_value.derive_conditions_and_joins(consider_joins, inspected, dbfy(foreign_field_name)+".")
-                        joins.append(join)
-                        joins.extend(ref_joins)
-                        conditions.extend(ref_conditions)
-
+                        # prevent infinite recursion
+                        if (joined_cls,src_col_name) not in inspected:
+                            # Recurse on the related entity
+                            inspected.add((joined_cls,src_col_name))
+                            ref_conditions, ref_joins = foreign_value.derive_conditions_and_joins(consider_joins, inspected, dbfy(foreign_field_name)+".")
+                            joins.append(join)
+                            joins.extend(ref_joins)
+                            foreign_pk_value = foreign_value.pk_value()
+                            if foreign_pk_value:
+                                conditions.append(wrap_condition(foreign_field.col_name(), '=', foreign_pk_value))
+                            conditions.extend(ref_conditions)
 
                     elif foreign_value is not None:
                         # Foreign is an actual key value, the join ON condition will use it. Furthermore we don't select the joined table attributes
-                        join = Join(joined_cls=joined_cls, src_col_name=foreign_field._name, value=foreign_value, joined_col_names=[])
+                        join = Join(joined_cls=joined_cls, src_field=foreign_field, value=foreign_value, joined_col_names=[], target_col_name=foreign_field.col_name())
                         joins.append(join) # JOIN table refName ON refName.id = id-value
+                        conditions.append(wrap_condition(src_col_name, '=', foreign_value))
 
         return conditions, joins
 
     def _load(self, condition = '', ordering:list[tuple[str,str]] = [], consider_joins:bool = False, ):
-        #if not self._class_initialized: # todo : Still necessary?
-        #    Storable.init_class(self)
-
         # Build the WHERE condition upon which to SELECT the record
         # If a unique key is filled in we use it
         # Else if a multi-column unique constraint exist and the corresponding instance attribute have valid values, use it
@@ -590,11 +528,7 @@ class Storable(ABC, metaclass=StorableMeta):
             self.fill(result[0])
         return result
 
-
     def load_all(self, condition = '', ordering:list[tuple[str,str]] = [], consider_joins:bool = True):
-        #if not self._class_initialized:
-        #    Storable.init_class(self)
-
         attrs = self._load(condition, ordering, consider_joins=consider_joins)
         result = []
         for attr in attrs:
@@ -603,9 +537,6 @@ class Storable(ABC, metaclass=StorableMeta):
         return result, attrs
 
     def save(self) -> int:
-        if not self._class_initialized:
-            Storable.init_class(self)
-
         # Check if all required field have a value. If not and the field has a default, use it.
         col_list = []
         col_values = []
@@ -616,18 +547,21 @@ class Storable(ABC, metaclass=StorableMeta):
                 if field_value is None:
                     if field.required:
                         if field.default_value is not None:
-                            # The field has noo value but a default is available
+                            # The field has no value but a default is available
                             self.__setattr__(field_name, field.default_value)
                             field_value = field.default_value
-                if field_value:
+                if field_value is not None:
                     if isinstance(field_value, Storable):
                         col_list.append(field.col_name())
                         col_values.append(dbfy_value(field_value.pk_value()))
                     else:
                         col_list.append(field.col_name())
                         col_values.append(field.dbfy_value(field_value))
+                else:
+                    if field.required:
+                        raise ValueError(f"Field {field_name} is required")
 
-            # If _id is None, this is considered an insertion, else an update
+        # If _id is None, this is considered an insertion, else an update
         if self.pk_value() is None:
             print(f"{type(self)} col_values={col_values} col_list={col_list}")
             self.set_pk_value(SqlStore().insert(self._table_, col_list, col_values))

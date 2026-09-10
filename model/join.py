@@ -5,6 +5,7 @@ from typing import Any
 class Join:
     """Class for keeping track of join"""
     joined_cls: "Storable"
-    src_col_name: str
+    src_field: "Field"
+    target_col_name: str
     value: Any
     joined_col_names: list[str]

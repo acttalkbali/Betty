@@ -12,7 +12,7 @@ class Team(Storable):
         #self._tournament = tournament
 
     def __str__(self):
-        return f'{self.name or self._id}'
+        return f'{self.name or self.pk_value()}'
 
     def __repr__(self):
         return super().__repr__()
@@ -25,8 +25,8 @@ class Team(Storable):
     #    self.name = v or "unnamed" + str(id(self))
 
     #property
-    def tournament_id(self):
-        return self._tournament._id
+    #def tournament_id(self):
+    #    return self._tournament._id
 
 
 if __name__ == '__main__':

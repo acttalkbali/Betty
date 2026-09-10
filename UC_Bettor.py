@@ -217,7 +217,7 @@ def buy_sheeps(bettor:Bettor):
             #    participation.save()
 
 
-def bet(bettor:Bettor):
+def make_a_bet(bettor:Bettor):
     """
     UC Bet:
     PRE bettor logged-in, OPEN/RUNNING tournament T selected
@@ -227,6 +227,7 @@ def bet(bettor:Bettor):
         if not UiBettorContext().tournament_selected_id:
             tournament_selection(bettor, ['OPEN', 'RUNNING'])
         if UiBettorContext().tournament_selected_id:
+            # Collect all not yet expired bettables for this tournament
             attr_dicts = SqlStore().run_query(f"SELECT b.id, b.a_team_id, b.b_team_id, b.start_dt, p.id AS phase_id \
                                          FROM {Bettable._table_} b, {Phase._table_} p, {Tournament._table_} tr \
                                          WHERE b.phase_id=p.id AND p.tournament_id = tr.id \
@@ -261,15 +262,15 @@ def bet(bettor:Bettor):
     else:
         ui.error_msg("You must be logged in to make a bet")
 
-def calculate_score(prediction:int, outcome:int) -> int:
+def calculate_score(prediction:int, outcome:int) -> float:
     s_prediction = str(prediction)
     s_outcome = str(outcome)
     if prediction == outcome:
-        return 6
+        return 6.0
     elif len(s_prediction)==2 and s_outcome in s_prediction:
-        return 3
+        return 3.0
     else:
-        return 0
+        return 0.0
 
 def tournament_status():
     """
@@ -326,7 +327,7 @@ def show_ranking(bettor:Bettor):
                     # Not an ex-aequo
                     prv_score = attr_dict['score']
                     ranking = rank + 1
-                print(f"{ranking:3} {attr_dict['nickname']:20} {attr_dict['score'] or 0:3} points")
+                print(f"{ranking:3} {attr_dict['nickname']:20} {attr_dict.get('score', 0.0):3} points")
 
 
 if __name__ == '__main__':
@@ -335,7 +336,7 @@ if __name__ == '__main__':
     bettor = login() # todo remove these hard-coded parameter values
     if bettor:
         tournament_selection(bettor)
-        options = [('Make a bet', lambda : bet(bettor)),
+        options = [('Make a bet', lambda : make_a_bet(bettor)),
                    ('Show ranking', lambda : show_ranking(bettor)),
                    ('Buy sheeps', lambda : buy_sheeps(bettor)),
                    ('Status', lambda : tournament_status()),
