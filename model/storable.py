@@ -540,7 +540,6 @@ class Storable(ABC, metaclass=StorableMeta):
         # Check if all required field have a value. If not and the field has a default, use it.
         col_list = []
         col_values = []
-        print(self._fields)
         for field_name, field in self._fields.items():
             if field.sql_type != 'SERIAL':
                 field_value = self.__getattribute__(field_name)

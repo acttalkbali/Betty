@@ -29,10 +29,3 @@ class Participation(Storable):
     def __repr__(self):
         return super().__repr__()
 
-    @property
-    def bettor_id(self):
-        return self.bettor.id
-
-    @property
-    def tournament_id(self):
-        return self.tournament.id

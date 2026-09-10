@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from .storable import Storable, Field, CharField, DateField, IntegerField, StorableMeta
 
-#from SqlStore import SqlStore
-
 TOURNAMENT_STATE_OPEN = "OPEN"
 TOURNAMENT_STATE_RUNNING = "RUNNING"
 TOURNAMENT_STATE_CLOSED = "CLOSED"
@@ -31,30 +29,6 @@ class Tournament(Storable):
     def __repr__(self):
         return super().__repr__()
 
-    #@property
-    #def start_dt(self):
-    #    return self.start_dt
-    #@start_dt.setter
-    #def start_dt(self, value : datetime):
-    #    """
-    #    start date is changed only if it occurs before a set end date
-    #    """
-    #    if self.start_dt == self.end_dt:
-    #        self.end_dt = value
-    #    else:
-    #        if self.start_dt < self.end_dt:
-    #            self.start_dt = value
-
-    #@property
-    #def end_dt(self):
-    #    return self.start_dt
-    #@end_dt.setter
-    #def end_dt(self, value : datetime):
-    #    """
-    #    end date is set only if it occurs on or after the start date
-    #    """
-    #    if value >= self.start_dt: #
-    #        self.end_dt = value
 
 if __name__ == '__main__':
     from .betty import Betty
@@ -64,6 +38,4 @@ if __name__ == '__main__':
     t3 = Tournament(betty, "FIFA World Cup 2026", datetime(day=11, month=6, year=2026, hour=21), datetime(day=19, month=7, year=2026, hour=21))
     print(f'{t1.name} / {t2.name} / {t3.name}')
     t3.save()
-    #t1.name = "Tournament 1"
-    #t1.start_date = dt.datetime(2026, 7,15,20)
 

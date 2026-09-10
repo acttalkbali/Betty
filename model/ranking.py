@@ -23,7 +23,6 @@ class Ranking(Storable):
         self.bettor = bettor
         self.tournament = tournament
         self.score = score
-        #self._unique_constraint = UniqueConstraint(['_bettor', '_tournament'])
 
     # built_ins -----------------------------------------------------------------
 
@@ -33,14 +32,3 @@ class Ranking(Storable):
     def __repr__(self):
         return super().__repr__()
 
-    # properties -----------------------------------------------------------------
-
-    @property
-    def bettor_id(self):
-        return self.bettor._id
-
-    @property
-    def tournament_id(self):
-        return self.tournament._id
-
-    # storable -----------------------------------------------------------------

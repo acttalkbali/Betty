@@ -8,7 +8,6 @@ from model.participation import Participation
 from model.phase import Phase
 from model.ranking import Ranking
 from model.sql_store import SqlStore
-from model.storable import STORABLE_ORDER_DESC, joined_column
 from model.team import Team
 
 def query_tournament_bettables_with_teams(tournament_id:int) -> [tuple]:

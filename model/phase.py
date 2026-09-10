@@ -11,18 +11,10 @@ class Phase(Storable):
     state = CharField(required=True)
     scoring = CharField()
 
-    """
-    id SERIAL PRIMARY KEY,
-    {cls.references_by_id(Tournament)},
-    name TEXT,
-    state TEXT NOT NULL,
-    scoring TEXT
-    """
     def __init__(self, name:str='', tournament:Tournament|int=None, state:str='', scoring:str=''):
         super().__init__()
         self.name = name
         self.tournament = tournament
-        #self._tournament_id = tournament._id
         self.state = state
         self.scoring = scoring
 
@@ -31,13 +23,3 @@ class Phase(Storable):
 
     def __repr__(self):
         return super().__repr__()
-
-    # @property
-    # def name(self):
-    #    return self.name
-    # @name.setter
-    # def name(self, v):
-    #    self.name = v or "unnamed" + str(id(self))
-
-    def tournament_id(self):
-        return self.tournament.id

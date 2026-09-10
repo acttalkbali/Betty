@@ -34,7 +34,6 @@ class Bettable(Storable):
         self.start_dt = start_dt
         self.state = None if start_dt is None else BETTABLE_STATE_OPEN if start_dt > datetime.now(timezone.utc) else BETTABLE_STATE_RUNNING
         self.outcome = outcome
-        #self.constraint = UniqueConstraint(["_phase", "_team_a", "_team_b"])
 
     # built_ins -----------------------------------------------------------------
 
@@ -43,19 +42,3 @@ class Bettable(Storable):
 
     def __repr__(self):
         return super().__repr__()
-
-    # properties -----------------------------------------------------------------
-
-    #@property
-    #def phase_id(self):
-    #    return self.phase.id
-
-    #@property
-    #def a_team_id(self):
-    #    return self.a_team.id
-
-    #@property
-    #def b_team_id(self):
-    #    return self.b_team.id
-
-    # storable -----------------------------------------------------------------

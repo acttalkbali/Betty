@@ -7,7 +7,7 @@ from model.join import Join
 class SqlStore:
 
     _instance = None
-    _debug = True # Set to True to have debug information in the console
+    _debug = False # Set to True to have debug information in the console
 
     DEFAULT_DB_CONFIG = {
         #"host": os.getenv("DB_HOST"),

@@ -32,16 +32,6 @@ class Bet(Storable):
     def __repr__(self):
         return super().__repr__()
 
-    # properties -----------------------------------------------------------------
-
-    @property
-    def bettor_id(self):
-        return self.bettor._id
-
-    @property
-    def bettable_id(self):
-        return self.bettable._id
-
     # storable -----------------------------------------------------------------
 
     def save(self):

@@ -26,11 +26,3 @@ class SheepLivestock(Storable):
 
     def __repr__(self):
         return super().__repr__()
-
-    #property
-    def bettor_id(self) -> int|None:
-        return self.bettor._id if isinstance(self.bettor, Bettor) else 0
-
-    #property
-    def sheep_value_id(self) -> int|None:
-        return self.sheep_value._id if isinstance(self.sheep_value, SheepValue) else 0

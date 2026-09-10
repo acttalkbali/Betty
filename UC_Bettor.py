@@ -9,7 +9,6 @@ from model.sql_store import SqlStore
 
 #from dotenv import load_dotenv
 
-
 #================== UI context
 E_PREDICTIONS = ('1', '2', '0', '10', '20', '12')
 E_OUTCOMES = ('1', '2', '0')

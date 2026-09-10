@@ -101,7 +101,7 @@ def tournament_selection(states:list[str]=None) -> int:
         tr = tournaments[selection]
         UiAdminContext().tournament_selected_name = tr.name
         UiAdminContext().tournament_selected_id = tr.id
-        UiAdminContext().tournament_selected = Tournament(name=tr.name, id=tr.id)
+        UiAdminContext().tournament_selected = tr
         print(f"Selected tournament : {UiAdminContext().tournament_selected_id}")
         return selection
     return -1
@@ -137,14 +137,6 @@ def betty_status():
 
     for tr_attr_dict in tr_attr_dicts:
         print(f"Tournament: {tr_attr_dict['id']} {tr_attr_dict['name']} [{tr_attr_dict['start_dt']} - {tr_attr_dict['end_dt']}] {tr_attr_dict['state']}")
-        #bettable_attr_dicts = Betty().query(
-        #    f"SELECT ba.id as bettable_id, ba.start_dt, t1.name as t1_name, t2.name as t2_name, ba.outcome, ba.state, ph.id as phase_id, ph.name as phase_name, ph.state as phase_state, ph.scoring "
-        #    f"FROM {Bettable._table_} ba "
-        #    f"JOIN {Phase._table_} ph ON ba.phase_id = ph.id "
-        #    f"JOIN {Team._table_} t1 ON ba.a_team_id = t1.id "
-        #    f"JOIN {Team._table_} t2 ON ba.b_team_id = t2.id "
-        #    f"WHERE ph.tournament_id = {tr_attr_dict['id']} "
-        #    f"ORDER BY ba.start_dt ASC")
         bettable_attr_dicts = query_tournament_bettables_with_teams(tr_attr_dict['id'])
         prv_phase_name = None
         for bettable_attr_dict in bettable_attr_dicts:
@@ -163,11 +155,6 @@ def compute_ranking():
     """
     if UiAdminContext().tournament_selected_id:
         # Select the tournament's bettables which have a non-NULL outcome
-        #bettable_attr_dicts = SqlStore().run_query(
-        #    f"SELECT b.id as bettable_id, b.outcome, p.id as phase_id "
-        #    f"FROM {Bettable._table_} b, {Phase._table_} p "
-        #    f"WHERE b.phase_id = p.id AND p.tournament_id = {UiAdminContext().tournament_selected_id} AND b.outcome IS NOT NULL "
-        #    f"ORDER BY b.start_dt ASC")
         phase = Phase(tournament=UiAdminContext().tournament_selected_id)
         bettable = Bettable(phase=phase)
         relevant_bettables, _ = bettable.load_all(condition='outcome IS NOT NULL', ordering=[('start_dt', 'ASC')])
@@ -177,12 +164,6 @@ def compute_ranking():
         for prediction in E_PREDICTIONS:
             for outcome in E_OUTCOMES:
                 bet_score[(prediction,outcome)] = calculate_score(prediction, outcome)
-
-        #for bettable_attr_dict in bettable_attr_dicts:
-        #    # Select all bettor predictions for that bettable
-        #    bets, _ = Bet(bettable=bettable_attr_dict['bettable_id'], bettor=Bettor()).load_all()
-        #    for bet in bets:
-        #        scoring[bet._bettor._referred] = scoring.get(bet._bettor._referred, 0) + bet_score[(bet._prediction._value, bettable_attr_dict['outcome'])]
 
         for bettable in relevant_bettables:
             # Select all bettor predictions for that bettable
@@ -227,13 +208,6 @@ def show_ranking():
     The tournament's current bettor ranking is listed.
     """
     if UiAdminContext().tournament_selected:
-        #attr_dicts = Betty().query(
-        #    f"SELECT r.id, br.nickname, r.tournament_id, r.score, r.rank "
-        #    f"FROM {Ranking._table_} r "
-        #    f"JOIN {Bettor._table_} br ON r.bettor_id = br.id "
-        #    f"WHERE r.tournament_id={UiAdminContext().tournament_selected_id} "
-        #    f"ORDER BY r.rank ASC")
-
         rankings, attr_dicts = Ranking(tournament=UiAdminContext().tournament_selected_id, bettor=Bettor()).load_all(ordering=[('rank', 'ASC')])
         print(f"\n========== {UiAdminContext().tournament_selected_name} RANKING ==========")
         prv_score = ''
@@ -308,8 +282,8 @@ def input_bettable_outcome():
                                    f" JOIN {Team._table_} ta ON ta.id = b.a_team_id"
                                    f" JOIN {Team._table_} tb ON tb.id = b.b_team_id"
                                    f" JOIN {Phase._table_} p ON b.phase_id = p.id AND p.tournament_id={UiAdminContext().tournament_selected_id}"
-                                   f" WHERE b.start_dt < '{datetime.datetime.now()}' AND b.outcome IS NULL"
-                                   f" ORDER BY b.start_dt ASC")
+                                   f" WHERE b.start_dt < '{datetime.datetime.now()}'"
+                                   f" ORDER BY b.start_dt DESC")
         if attr_dicts:
             for attr_dict in attr_dicts:
                 attr_dict.update({'tournament_name': UiAdminContext().tournament_selected_name})

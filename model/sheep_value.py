@@ -51,6 +51,4 @@ if __name__ == '__main__':
     t3 = Tournament(betty, "FIFA World Cup 2026", datetime(day=11, month=6, year=2026, hour=21), datetime(day=19, month=7, year=2026, hour=21))
     print(f'{t1.name} / {t2.name} / {t3.name}')
     t3.save()
-    #t1.name = "Tournament 1"
-    #t1.start_date = dt.datetime(2026, 7,15,20)
 
