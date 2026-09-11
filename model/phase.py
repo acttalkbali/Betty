@@ -9,7 +9,7 @@ class Phase(Storable):
     name = CharField()
     tournament = Many2OneField(Tournament.id)
     state = CharField(required=True)
-    scoring = CharField()
+    scoring = CharField(required=False)
 
     def __init__(self, name:str='', tournament:Tournament|int=None, state:str='', scoring:str=''):
         super().__init__()

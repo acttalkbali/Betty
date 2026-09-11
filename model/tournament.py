@@ -10,9 +10,9 @@ class Tournament(Storable):
     _table_ = "tournament"
 
     name = CharField(unique=True)
+    state = CharField(default_value=TOURNAMENT_STATE_LOCKED)
     start_dt = DateField()
     end_dt = DateField(check=lambda self, x: self.start_dt is None or x >= self.start_dt)
-    state = CharField(default_value=TOURNAMENT_STATE_LOCKED)
     sheep_credit = IntegerField(default_value=500) # todo 0 as default?
 
     def __init__(self, id:int|None=None, name:str|None=None, start_date:datetime|None=None, end_date:datetime|None=None, sheep_credit:int=500):

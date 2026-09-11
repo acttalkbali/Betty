@@ -7,8 +7,8 @@ from .team import Team
 class SheepValue(Storable):
     _table_ = "sheep_value"
 
+    tournament = Many2OneField(Tournament.id)
     team = Many2OneField(Team.id)
-    tournament =  Many2OneField(Tournament.id)
     sheep_value = IntegerField(check=lambda inst, x: x > 0)
 
     def __init__(self, team:Team|int=None, tournament:Tournament|int=None, sheep_value:int=None, id:int|None=None):

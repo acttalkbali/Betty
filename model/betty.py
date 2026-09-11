@@ -168,7 +168,7 @@ class Betty:
         :return: None
         """
 
-        commands = [f"DROP TABLE IF EXISTS {table} CASCADE;" for table in Storable.entities.values()]
+        commands = [f"DROP TABLE IF EXISTS {table} CASCADE;" for table in Storable.entities.keys()]
         if cls._debug: print(f'betty: {commands}')
         store = cls.get_store()
         if store.run_commands(commands, force_debug=True) == True:

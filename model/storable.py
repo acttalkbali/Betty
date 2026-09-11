@@ -71,7 +71,7 @@ class Field:
     def dbfy_value(self, value):
         return f"'{value}'"
 
-    def col_name(self):
+    def col_name(self) -> str:
         return self._name
 
     def dbfy_name(self, attr_name=None):
@@ -130,11 +130,11 @@ class Field:
                 instance._dirty_fields.add(self.attribute_name)
 
     def sql_def(self):
-        return f"{self.attribute_name} {self.sql_type}" \
+        return f"{self.col_name()} {self.sql_type}" \
                + (' NOT NULL' if self.required else '') \
                + (' UNIQUE' if self.unique else '') \
                + (' PRIMARY KEY' if self.primary_key else '') \
-               + ((' DEFAULT ' + self.default_value) if self.default_value else '')
+               + ((' DEFAULT ' + self.dbfy_value(self.default_value)) if self.default_value else '')
 
     def check_and_coerce(self, value):
         '''
@@ -275,6 +275,9 @@ class Many2OneField(Field):
             # an actual foreign key value. Check it against the target field
             return self._target_field.check_and_coerce(value)
 
+    def sql_def(self):
+        return super().sql_def() + f" REFERENCES {self._target_field.owner_cls._table_}.{self._target_field.attribute_name}"
+
     def col_name(self):
         return self._name + '_id' # todo use target's pk attribute name, which may differ from 'id'
 
@@ -312,7 +315,7 @@ class Many2ManyField(Field):
 class UniqueConstraint:
     def __init__(self, fields:[Field], name:str=""):
         self.fields = fields
-        self.name = name # or "uc_" + '_'.join(map(lambda field: field.owner_cls.__name__, fields))
+        self.name = name or ("uc_" + '_'.join(map(lambda field: field.owner_cls._table_, self.fields)))
 
     def sql_def(self):
         return f"CONSTRAINT {self.name} UNIQUE (" \
@@ -326,7 +329,7 @@ class StorableMeta(ABCMeta):
         entity_name = attrs.get(STORABLE_ENTITY_ATTR_NAME)
         if entity_name:
             #print(f"Adding class {name} : {entity_name} to entities mapping")
-            Storable.entities[name] = entity_name
+            #Storable.entities[name] = entity_name
 
             # Add class attributes:
             # Add two class attributes:
@@ -352,6 +355,8 @@ class StorableMeta(ABCMeta):
 
         # create the class
         cls = super().__new__(mcs, name, bases, attrs)
+        if entity_name:
+            Storable.entities[name] = cls
 
         # Add a reference to the class in each descriptor
         for  attr in attrs:
@@ -385,6 +390,26 @@ class Storable(ABC, metaclass=StorableMeta):
     @id.setter
     def id(self, value:int|None):
         self._id._value = value
+
+    @classmethod
+    def create_schema(cls):
+        table_defs = [storable_cls.create_table() for storable_cls in cls.entities.values()]
+        return '\n'.join(table_defs)
+
+    @classmethod
+    def drop_schema(cls):
+        return ' '.join([storable_cls.drop_table() for table_name, storable_cls in cls.entities.items()])
+
+    @classmethod
+    def create_table(cls):
+        column_defs = [field.sql_def() for field_name, field in cls._fields.items()]
+        constraint_defs = [field.sql_def() for field_name, field in cls._unique_constraints.items()]
+        table_def = f"CREATE TABLE IF NOT EXISTS {cls._table_} ( {', '.join(column_defs + constraint_defs)} );"
+        return table_def
+
+    @classmethod
+    def drop_table(cls):
+        return f"DROP TABLE IF EXISTS {cls._table_};"
 
     def derive_conditions_and_joins(self, consider_joins:bool, inspected:set[tuple[Storable,str]], col_prefix:str='') -> tuple[list[str], list[Join]]:
         '''
