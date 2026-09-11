@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 class Bet(Storable):
     _table_ = 'bet'
 
-    bettor = Many2OneField(Bettor.id, required=True)
     bettable = Many2OneField(Bettable.id, required=True)
+    bettor = Many2OneField(Bettor.id, required=True)
     prediction = CharField(required=True)
     score = FloatField(required=False)
 

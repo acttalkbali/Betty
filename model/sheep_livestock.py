@@ -11,8 +11,8 @@ class SheepLivestock(Storable):
     participation mais cela allonge l'accès au Bettor
     """
 
-    sheep_value = Many2OneField(SheepValue.id)
     bettor = Many2OneField(Bettor.id)
+    sheep_value = Many2OneField(SheepValue.id)
     quantity = IntegerField()
 
     def __init__(self, sheep_value: SheepValue|int=None, bettor: Bettor|int=None, quantity: int=None, id:int|None=None):

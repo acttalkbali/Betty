@@ -1,5 +1,10 @@
-from model.betty import Betty, Tournament, Participation, Team, Bet, Bettable, Bettor
+from model.tournament import Tournament
 from model.phase import Phase
+from model.team import Team
+from model.bettable import Bettable
+from model.bettor import Bettor
+from model.participation import Participation
+from model.bet import Bet
 from model.ranking import Ranking
 from model.sheep_livestock import SheepLivestock
 from model.sheep_value import SheepValue
@@ -193,27 +198,22 @@ def buy_sheeps(bettor:Bettor):
                     max_sheeps = credit // int(attr_dict['sheep_value'])
                     qty = livestock.get(attr_dict['name'], '')
                     team_sheep_value = f"{attr_dict['name']} value {attr_dict['sheep_value']} (max {max_sheeps}) "
-                    choices.append(team_sheep_value + ('.' * (45 - len(team_sheep_value))) + f" {qty if qty else '':2}")
+                    choices.append((team_sheep_value + ('.' * (45 - len(team_sheep_value))) + f" {qty if qty else '':2}", qty))
 
-                selection = ui.input_selection(choices, lambda x: x)
+                selection = ui.input_selection(choices, lambda x: x[0])
                 if selection >= 0:
                     max_sheeps = credit // int(attr_dicts[selection]['sheep_value'])
-                    n = ui.input_int(f"Number of sheeps to buy (max {max_sheeps} according to your current credit ({credit})", 0, max_sheeps)
+                    n = ui.input_int(f"Number of sheeps to buy (max {max_sheeps} according to your current credit ({credit})", -choices[selection][1], max_sheeps)
                     # Update credit accordingly
                     UiBettorContext().credit -= n * int(attr_dicts[selection]['sheep_value'])
-                    sheep_livestock = SheepLivestock(sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=n)
+                    new_qty = n + choices[selection][1]
+                    sheep_livestock = SheepLivestock(sheep_value=attr_dicts[selection]['id'], bettor=bettor.id, quantity=new_qty)
                     sheep_livestock.save()
-                    livestock[attr_dicts[selection]['name']] = n
+                    livestock[attr_dicts[selection]['name']] = new_qty
                     participation.credit = UiBettorContext().credit
                     participation.save()
                 else:
                     break
-            # todo update credit along the livestock update
-            #if selection >= 0:
-            #    participation = Participation(id=UiBettorContext().participation_id)
-            #    participation.load()
-            #    participation.credit = UiBettorContext().credit
-            #    participation.save()
 
 
 def make_a_bet(bettor:Bettor):
@@ -244,18 +244,19 @@ def make_a_bet(bettor:Bettor):
                 team_b.load()
                 bettable = Bettable(phase=attr_dict['phase_id'], team_a=team_a, team_b=team_b, start_dt=attr_dict['start_dt'], id=attr_dict['id'])
                 bet = Bet(bettor=bettor, bettable=bettable)
-                result = bet.load() # load the bet if it already exists
+                bet.load() # load the bet if it already exists
                 choices.append((bettable,bet))
-                #choices.append(f"{attr_dict['start_dt']} : {team_a.name} - {team_b.name}")
-            selection = ui.input_selection(choices, lambda x: f"{x[0].start_dt} {x[0].a_team.name} - {x[0].b_team.name}" + (f" << {x[1].prediction} >>" if x[1].prediction else ''))
-
-            if selection >= 0:
-                while (prediction:= input(f"{choices[selection][0]} result prediction (1=A wins | 2=B wins | 12=A or B wins | 10=A wins or draw | 20=B wins or draw | 0 draw): ").strip()) not in ['', '0', '1', '2', '12', '10', '20']:
-                    pass # Not a valid entry, just try again
-                if prediction != '':
-                    choices[selection][1].prediction = int(prediction)
-                    choices[selection][1].save()
-                    ui.info("Your prediction has been recorded")
+            if choices:
+                selection = ui.input_selection(choices, lambda x: f"{x[0].start_dt} {x[0].a_team.name} - {x[0].b_team.name}" + (f" << {x[1].prediction} >>" if x[1].prediction else ''))
+                if selection >= 0:
+                    while (prediction:= input(f"{choices[selection][0]} result prediction (1=A wins | 2=B wins | 12=A or B wins | 10=A wins or draw | 20=B wins or draw | 0 draw): ").strip()) not in ['', '0', '1', '2', '12', '10', '20']:
+                        pass # Not a valid entry, just try again
+                    if prediction != '':
+                        choices[selection][1].prediction = int(prediction)
+                        choices[selection][1].save()
+                        ui.info("Your prediction has been recorded")
+            else:
+                ui.info("There currently is nothing on which to bet")
         else:
             ui.error_msg("Yor must first select a tournament")
     else:
@@ -314,7 +315,8 @@ def show_ranking(bettor:Bettor):
         if UiBettorContext().tournament_selected_id:
             attr_dicts = SqlStore().run_query(
                 f"SELECT r.id, b.nickname, r.tournament_id, r.score, r.rank "
-                f"FROM {Ranking._table_} r, {Tournament._table_} tr, {Bettor._table_} b "
+                f"FROM {Ranking._table_} r "
+                f"JOIN {Bettor._table_} b ON r.bettor_id=b.id "
                 f"WHERE r.tournament_id={UiBettorContext().tournament_selected_id} "
                 f"ORDER BY r.score DESC")
 

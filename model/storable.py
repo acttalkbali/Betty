@@ -315,12 +315,15 @@ class Many2ManyField(Field):
 class UniqueConstraint:
     def __init__(self, fields:[Field], name:str=""):
         self.fields = fields
-        self.name = name or ("uc_" + '_'.join(map(lambda field: field.owner_cls._table_, self.fields)))
+        self.name = name # or
 
     def sql_def(self):
-        return f"CONSTRAINT {self.name} UNIQUE (" \
-               + ','.join(map(lambda field: field._name, self.fields)) \
+        return f"CONSTRAINT {self.col_name()} UNIQUE (" \
+               + ', '.join(map(lambda field: field.col_name(), self.fields)) \
                + ')'
+
+    def col_name(self):
+        return self.name or ("uc_" + '_'.join(map(lambda field: field._name, self.fields)))
 
 
 class StorableMeta(ABCMeta):
@@ -398,7 +401,7 @@ class Storable(ABC, metaclass=StorableMeta):
 
     @classmethod
     def drop_schema(cls):
-        return ' '.join([storable_cls.drop_table() for table_name, storable_cls in cls.entities.items()])
+        return '\n'.join([storable_cls.drop_table() for table_name, storable_cls in cls.entities.items()])
 
     @classmethod
     def create_table(cls):
@@ -409,7 +412,7 @@ class Storable(ABC, metaclass=StorableMeta):
 
     @classmethod
     def drop_table(cls):
-        return f"DROP TABLE IF EXISTS {cls._table_};"
+        return f"DROP TABLE IF EXISTS {cls._table_} CASCADE;"
 
     def derive_conditions_and_joins(self, consider_joins:bool, inspected:set[tuple[Storable,str]], col_prefix:str='') -> tuple[list[str], list[Join]]:
         '''

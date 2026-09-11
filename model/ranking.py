@@ -8,9 +8,9 @@ class Ranking(Storable):
     # Model -----------------------------------------------------------------
     _table_ = "ranking"
 
-    rank = IntegerField()
-    bettor = Many2OneField(Bettor.id)
     tournament = Many2OneField(Tournament.id)
+    bettor = Many2OneField(Bettor.id)
+    rank = IntegerField()
     score = FloatField()
 
     constraint = UniqueConstraint([bettor, tournament])

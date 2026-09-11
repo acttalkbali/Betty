@@ -1,19 +1,19 @@
 import datetime
 
 from model.sql_store import SqlStore
-from UC_Bettor import tournament_status, calculate_score, E_PREDICTIONS, E_OUTCOMES
+from UC_Bettor import calculate_score, E_PREDICTIONS, E_OUTCOMES
 from UC_Time import input_outcome, display_bettable
 from model import tournament
-from model.bet import Bet
+from model.tournament import Tournament
+from model.phase import Phase
+from model.team import Team
 from model.bettable import Bettable
 from model.bettor import Bettor
 from model.participation import Participation
-from model.phase import Phase
+from model.bet import Bet
 from model.ranking import Ranking
-from model.storable import STORABLE_ORDER_DESC, joined_column, Storable
-from model.team import Team
-from model.tournament import Tournament
-from model.queries import query_tournament_bettables, query_tournament_bettables_with_teams
+from model.storable import STORABLE_ORDER_DESC
+from model.queries import query_tournament_bettables_with_teams
 from ui.console_ui import input_selection, info
 
 

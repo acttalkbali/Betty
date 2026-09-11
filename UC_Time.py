@@ -6,12 +6,11 @@ from datetime import datetime
 
 from model.sql_store import SqlStore
 from ui.console_ui import input_selection, info
-from model.bettable import Bettable, BETTABLE_STATE_CLOSED, BETTABLE_OUTCOME_DRAW, BETTABLE_OUTCOME_A_WINS, \
-    BETTABLE_OUTCOME_B_WINS
-from model.betty import Betty
+from model.tournament import Tournament
 from model.phase import Phase
 from model.team import Team
-from model.tournament import Tournament
+from model.bettable import Bettable, BETTABLE_STATE_CLOSED, BETTABLE_OUTCOME_DRAW, BETTABLE_OUTCOME_A_WINS, \
+    BETTABLE_OUTCOME_B_WINS
 
 """
 UC A bettable starts:
@@ -62,4 +61,4 @@ if __name__ == '__main__':
                 break
             input_outcome(attr_dicts[selection])
     else:
-        info("There is no running bettable needing to be closed")
+        info("There is currently no bettable needing to be closed")

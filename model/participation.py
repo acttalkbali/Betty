@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from .storable import Storable, Many2OneField, FloatField, IntegerField
-from .betty import *
+from model.tournament import Tournament
+from model.bettor import Bettor
 
 #from SqlStore import SqlStore
 
@@ -11,10 +12,10 @@ TOURNAMENT_STATE_CLOSED = "CLOSED"
 class Participation(Storable):
     _table_ = 'participation'
 
-    bettor = Many2OneField(Bettor.id)
     tournament = Many2OneField(Tournament.id)
-    score = FloatField(required=False)
+    bettor = Many2OneField(Bettor.id)
     credit = IntegerField()
+    score = FloatField(required=False)
 
     def __init__(self, bettor:Bettor=None, tournament:Tournament=None, score=0, credit=0, id=None):
         super().__init__(id)

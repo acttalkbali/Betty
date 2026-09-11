@@ -22,7 +22,7 @@ def input_int(prompt:str, n_min:int, n_max:int)->int:
     """
     n = None
     while n is None or n < n_min or n > n_max:
-        n = int_or_none(input(f"{prompt} [{n_min}-{n_max}] : "))
+        n = int_or_none(input(f"{prompt} [{n_min} - {n_max}] : "))
     return n
 
 def input_selection(options:list, fn: callable|None=None, exit_option=0)->int:

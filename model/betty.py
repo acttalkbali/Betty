@@ -13,7 +13,6 @@ from .participation import Participation
 from .ranking import Ranking
 from .sql_store import SqlStore
 
-from datetime import datetime, timedelta
 from functools import reduce
 
 class Betty:

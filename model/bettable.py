@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from importlib.metadata import requires
 
 from .storable import Storable, Field, CharField, Many2OneField, DateField, UniqueConstraint
 from .phase import Phase

@@ -1,0 +1,14 @@
+objections.js
+    Query / Select.
+
+Alchemy
+
+Tortoise
+    inspired by Django
+    Object-oriented, strongly typed
+
+SQLModel
+    Aimed to work with FastAPI
+
+Prisma
+    Use a datamapper
